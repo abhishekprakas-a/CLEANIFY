@@ -103,12 +103,20 @@ export interface BookingStatusEvent {
   note?: string;
 }
 
+/** One tank within a job/booking (a property can have several). */
+export interface TankEntry {
+  name?: string;
+  tankType: TankType;
+  capacityLitres: number;
+  quantity?: number;
+  cleaningCharge?: number;
+}
+
 export interface Booking {
   id: Id;
   customerId: Id;
-  tankType: TankType;
-  tankCapacity: number;
-  numberOfTanks: number;
+  tanks: TankEntry[];
+  totalCharge?: number;
   scheduledDate: string;
   scheduledTime?: string;
   specialInstructions?: string;
@@ -140,7 +148,9 @@ export interface Job {
   jobCode: string;
   booking: Id;
   customer: Id;
-  assignedTechnician?: Id;
+  assignedTechnicians: Id[];
+  tanks: TankEntry[];
+  totalCharge?: number;
   scheduledDate?: string;
   scheduledTime?: string;
   scheduledSlot?: Slot;
@@ -180,7 +190,7 @@ export interface ScheduledJob {
   scheduledDate?: string;
   scheduledTime?: string;
   customer?: { id: Id; customerName: string; mobileNumber: string };
-  assignedTechnician?: { id: Id; name: string };
+  assignedTechnicians: { id: Id; name: string }[];
 }
 
 export interface DaySchedule {

@@ -214,11 +214,23 @@ async function run() {
     else scheduledDate = daysAgo(-(i % 4)); // upcoming
     const scheduledTime = pick(["09:00", "11:30", "14:00", "16:30"], i);
 
+    const bookingTanks = [
+      {
+        name: `Tank ${i + 1}`,
+        tankType: pick(tankTypes, i),
+        capacityLitres: pick([500, 1000, 2000, 5000], i),
+        quantity: (i % 3) + 1,
+        cleaningCharge: pick([600, 900, 1500, 2500], i),
+      },
+    ];
+    const bookingTotal = bookingTanks.reduce(
+      (s, t) => s + (t.cleaningCharge ?? 0) * (t.quantity ?? 1),
+      0,
+    );
     const booking = await bookingModel.create({
       customerId: customer._id,
-      tankType: pick(tankTypes, i),
-      tankCapacity: pick([500, 1000, 2000, 5000], i),
-      numberOfTanks: (i % 3) + 1,
+      tanks: bookingTanks,
+      totalCharge: bookingTotal,
       scheduledDate,
       scheduledTime,
       specialInstructions: i % 2 === 0 ? "Use side entrance" : undefined,
@@ -254,7 +266,9 @@ async function run() {
       jobCode,
       booking: booking._id,
       customer: customer._id,
-      assignedTechnician: hasTech ? tech._id : undefined,
+      assignedTechnicians: hasTech ? [tech._id] : [],
+      tanks: bookingTanks,
+      totalCharge: bookingTotal,
       scheduledDate,
       scheduledTime,
       status,
@@ -288,6 +302,37 @@ async function run() {
         techId: tech._id,
       });
     }
+  }
+
+  // A few bookings still awaiting a job — these show the "Create job" action.
+  console.log("Creating pending bookings (no job yet)…");
+  for (let i = 0; i < 3; i++) {
+    const customer = pick(customers, i + 4);
+    const pendingTanks = [
+      {
+        name: "Overhead tank",
+        tankType: pick(tankTypes, i + 1),
+        capacityLitres: pick([500, 1000, 2000], i),
+        quantity: (i % 2) + 1,
+        cleaningCharge: pick([700, 1200, 1800], i),
+      },
+    ];
+    await bookingModel.create({
+      customerId: customer._id,
+      tanks: pendingTanks,
+      totalCharge: pendingTanks.reduce(
+        (s, t) => s + (t.cleaningCharge ?? 0) * (t.quantity ?? 1),
+        0,
+      ),
+      scheduledDate: daysAgo(-(i + 1)),
+      scheduledTime: pick(["10:00", "13:00", "15:30"], i),
+      specialInstructions: "Call before arriving",
+      bookingStatus: bookingStatus.pending,
+      statusHistory: [
+        { status: bookingStatus.pending, at: new Date(), by: staff._id },
+      ],
+      createdBy: staff._id,
+    });
   }
 
   console.log("Creating attendance…");

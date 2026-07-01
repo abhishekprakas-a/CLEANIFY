@@ -33,6 +33,10 @@ function mapScheduled(doc: Record<string, unknown>): ScheduledJob {
   const customer = doc.customer as
     | { _id?: unknown; customerName?: string }
     | undefined;
+  const techs =
+    (doc.assignedTechnicians as
+      | { _id?: unknown; name?: string }[]
+      | undefined) ?? [];
   return {
     id: String(doc._id),
     jobCode: String(doc.jobCode),
@@ -48,6 +52,9 @@ function mapScheduled(doc: Record<string, unknown>): ScheduledJob {
           mobileNumber: "",
         }
       : undefined,
+    assignedTechnicians: techs
+      .filter((t) => t?._id)
+      .map((t) => ({ id: String(t._id), name: t.name ?? "" })),
   };
 }
 
@@ -154,25 +161,26 @@ export const dashboardService = {
     const [assignedActive, completed, todayDocs, activeDocs, attendance] =
       await Promise.all([
         jobModel.countDocuments({
-          assignedTechnician: tech,
+          assignedTechnicians: tech,
           status: { $nin: terminalJobStatuses },
         }),
         jobModel.countDocuments({
-          assignedTechnician: tech,
+          assignedTechnicians: tech,
           status: jobStatus.completed,
         }),
         jobModel
           .find({
-            assignedTechnician: tech,
+            assignedTechnicians: tech,
             scheduledDate: { $gte: start, $lt: end },
             status: { $ne: jobStatus.cancelled },
           })
           .sort({ scheduledTime: 1 })
           .populate("customer", "customerName")
+          .populate("assignedTechnicians", "name")
           .lean(),
         jobModel
           .find({
-            assignedTechnician: tech,
+            assignedTechnicians: tech,
             status: { $nin: terminalJobStatuses },
           })
           .select("status")

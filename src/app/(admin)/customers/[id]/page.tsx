@@ -137,9 +137,13 @@ export default async function CustomerDetailPage({
               {bookings.map((b) => (
                 <tr key={b.id}>
                   <td className="py-2 capitalize text-slate-700">
-                    {b.tankType}
+                    {[...new Set((b.tanks ?? []).map((t) => t.tankType))].join(
+                      ", ",
+                    ) || "—"}
                   </td>
-                  <td className="py-2 text-slate-600">{b.numberOfTanks}</td>
+                  <td className="py-2 text-slate-600">
+                    {(b.tanks ?? []).reduce((s, t) => s + (t.quantity ?? 1), 0)}
+                  </td>
                   <td className="py-2 text-slate-600">
                     {fmtDate(b.scheduledDate)}
                   </td>

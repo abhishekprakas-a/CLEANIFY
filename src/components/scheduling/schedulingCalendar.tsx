@@ -75,18 +75,19 @@ export function SchedulingCalendar() {
     else setAnchor((a) => addDays(a, dir));
   }
 
+  // Toggle a technician in/out of the job's crew, then push the full crew.
   async function assign(job: ScheduledJob, technicianId: string) {
     if (!technicianId) return;
+    const current = job.assignedTechnicians.map((t) => t.id);
+    const technicianIds = current.includes(technicianId)
+      ? current.filter((id) => id !== technicianId)
+      : [...current, technicianId];
+    if (technicianIds.length === 0) {
+      alert("A job needs at least one technician. Reschedule to unassign.");
+      return;
+    }
     try {
-      if (job.assignedTechnician) {
-        await api.post(`${routes.api.jobs}/${job.id}/reassign`, {
-          technicianId,
-        });
-      } else {
-        await api.patch(`${routes.api.jobs}/${job.id}/assign`, {
-          technicianId,
-        });
-      }
+      await api.patch(`${routes.api.jobs}/${job.id}/assign`, { technicianIds });
       load();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Assignment failed");
@@ -289,7 +290,9 @@ function WeekGrid({ days }: { days: DaySchedule[] }) {
                     {j.customer?.customerName ?? j.jobCode}
                   </div>
                   <div className="text-slate-400">
-                    {j.assignedTechnician?.name ?? "Unassigned"}
+                    {j.assignedTechnicians.length > 0
+                      ? j.assignedTechnicians.map((t) => t.name).join(", ")
+                      : "Unassigned"}
                   </div>
                 </div>
               ))
@@ -339,21 +342,28 @@ function DayList({
               {j.customer?.customerName ?? "—"}
               {j.customer?.mobileNumber ? ` · ${j.customer.mobileNumber}` : ""}
             </div>
+            <div className="mt-1 text-xs text-slate-400">
+              Crew:{" "}
+              {j.assignedTechnicians.length > 0
+                ? j.assignedTechnicians.map((t) => t.name).join(", ")
+                : "Unassigned"}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select
-              defaultValue={j.assignedTechnician?.id ?? ""}
+              value=""
               onChange={(e) => onAssign(j, e.target.value)}
               className="h-9 rounded-lg border border-slate-300 px-2 text-sm"
             >
-              <option value="">
-                {j.assignedTechnician ? "Reassign to…" : "Assign to…"}
-              </option>
-              {technicians.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
+              <option value="">Add / remove technician…</option>
+              {technicians.map((t) => {
+                const inCrew = j.assignedTechnicians.some((a) => a.id === t.id);
+                return (
+                  <option key={t.id} value={t.id}>
+                    {inCrew ? `✓ ${t.name} (remove)` : t.name}
+                  </option>
+                );
+              })}
             </select>
             <Button
               variant="secondary"

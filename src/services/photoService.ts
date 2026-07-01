@@ -20,7 +20,7 @@ function extFromContentType(contentType: string): string {
 async function assertOwnedJob(jobId: string, user: SessionUser) {
   const job = await jobModel.findById(jobId);
   if (!job) throw ApiError.notFound("Job not found");
-  if (String(job.assignedTechnician) !== user.id) {
+  if (!job.assignedTechnicians.some((t) => String(t) === user.id)) {
     throw ApiError.forbidden("This job is not assigned to you");
   }
   return job;

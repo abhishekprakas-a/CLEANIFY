@@ -120,25 +120,30 @@ export const reportService = {
     const filter: Record<string, unknown> = {
       ...dateMatch("scheduledDate", f),
     };
-    if (f.technicianId) filter.assignedTechnician = f.technicianId;
+    if (f.technicianId) filter.assignedTechnicians = f.technicianId;
     if (f.status) filter.status = f.status;
 
     const docs = await jobModel
       .find(filter)
       .sort({ scheduledDate: -1 })
       .populate("customer", "customerName")
-      .populate("assignedTechnician", "name")
+      .populate("assignedTechnicians", "name")
       .lean();
 
     const byStatus = new Map<string, number>();
     const rows = docs.map((d) => {
       const customer = d.customer as { customerName?: string } | undefined;
-      const tech = d.assignedTechnician as { name?: string } | undefined;
+      const techs =
+        (d.assignedTechnicians as { name?: string }[] | undefined) ?? [];
       byStatus.set(d.status, (byStatus.get(d.status) ?? 0) + 1);
       return {
         jobCode: d.jobCode,
         customer: customer?.customerName ?? "—",
-        technician: tech?.name ?? "—",
+        technician:
+          techs
+            .map((t) => t?.name)
+            .filter(Boolean)
+            .join(", ") || "—",
         scheduledDate: fmtDate(d.scheduledDate),
         completedAt: fmtDate(d.completedAt),
         status: d.status,
@@ -192,11 +197,12 @@ export const reportService = {
         {
           $match: {
             status: jobStatus.completed,
-            assignedTechnician: { $ne: null },
             ...dateMatch("completedAt", f),
           },
         },
-        { $group: { _id: "$assignedTechnician", count: { $sum: 1 } } },
+        // One completed job credits every crew member.
+        { $unwind: "$assignedTechnicians" },
+        { $group: { _id: "$assignedTechnicians", count: { $sum: 1 } } },
       ]),
       reviewModel.aggregate([
         {

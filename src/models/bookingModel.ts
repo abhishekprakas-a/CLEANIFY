@@ -1,5 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import { allBookingStatuses, allTankTypes, bookingStatus } from "@/constants";
+import { allBookingStatuses, bookingStatus } from "@/constants";
+import { tankEntrySchema, type TankEntryDocument } from "./tankSchema";
 
 export interface BookingStatusEventDocument {
   status: string;
@@ -11,9 +12,8 @@ export interface BookingStatusEventDocument {
 export interface BookingDocument {
   _id: mongoose.Types.ObjectId;
   customerId: mongoose.Types.ObjectId;
-  tankType: string;
-  tankCapacity: number;
-  numberOfTanks: number;
+  tanks: TankEntryDocument[];
+  totalCharge?: number;
   scheduledDate: Date;
   scheduledTime?: string; // HH:mm
   specialInstructions?: string;
@@ -43,9 +43,15 @@ const bookingSchema = new Schema<BookingDocument>(
       required: true,
       index: true,
     },
-    tankType: { type: String, enum: allTankTypes, required: true },
-    tankCapacity: { type: Number, required: true, min: 1 },
-    numberOfTanks: { type: Number, required: true, min: 1, default: 1 },
+    tanks: {
+      type: [tankEntrySchema],
+      required: true,
+      validate: {
+        validator: (v: unknown[]) => Array.isArray(v) && v.length > 0,
+        message: "At least one tank is required",
+      },
+    },
+    totalCharge: { type: Number, min: 0 },
     scheduledDate: { type: Date, required: true },
     scheduledTime: { type: String },
     specialInstructions: { type: String, trim: true },

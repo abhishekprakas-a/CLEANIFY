@@ -29,6 +29,17 @@ function customerName(row: BookingRow): string {
     : "—";
 }
 
+function tankSummary(row: BookingRow): string {
+  const tanks = row.tanks ?? [];
+  if (tanks.length === 0) return "—";
+  const types = [...new Set(tanks.map((t) => t.tankType))].join(", ");
+  return tanks.length === 1 ? types : `${types} (${tanks.length} lines)`;
+}
+
+function tankQty(row: BookingRow): number {
+  return (row.tanks ?? []).reduce((s, t) => s + (t.quantity ?? 1), 0);
+}
+
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
@@ -102,6 +113,28 @@ export function BookingTable() {
       load();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Cancel failed");
+    }
+  }
+
+  // Turn a booking into a schedulable job, then assign it on the Schedule.
+  async function onCreateJob(row: BookingRow) {
+    if (
+      !confirm(
+        "Create a job for this booking? You can then assign a technician on the Schedule.",
+      )
+    ) {
+      return;
+    }
+    try {
+      await api.post(routes.api.jobs, {
+        booking: row.id,
+        scheduledDate: row.scheduledDate,
+        scheduledTime: row.scheduledTime,
+      });
+      alert("Job created. Open the Schedule to assign a technician.");
+      load();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not create job");
     }
   }
 
@@ -187,11 +220,9 @@ export function BookingTable() {
                     {customerName(b)}
                   </td>
                   <td className="px-4 py-3 capitalize text-slate-600">
-                    {b.tankType}
+                    {tankSummary(b)}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {b.numberOfTanks}
-                  </td>
+                  <td className="px-4 py-3 text-slate-600">{tankQty(b)}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {fmtDate(b.scheduledDate)}
                     {b.scheduledTime ? ` · ${b.scheduledTime}` : ""}
@@ -208,6 +239,14 @@ export function BookingTable() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      {b.bookingStatus === "pending" && (
+                        <button
+                          onClick={() => onCreateJob(b)}
+                          className="text-sm font-medium text-green-600 hover:text-green-700"
+                        >
+                          Create job
+                        </button>
+                      )}
                       <button
                         onClick={() => onReschedule(b)}
                         disabled={isTerminal(b.bookingStatus)}

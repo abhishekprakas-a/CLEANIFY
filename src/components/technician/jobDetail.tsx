@@ -122,6 +122,29 @@ export function JobDetail({ jobId }: { jobId: string }) {
         )}
       </Card>
 
+      {(job.tanks ?? []).length > 0 && (
+        <Card>
+          <CardTitle>Tanks to clean ({job.tanks.length})</CardTitle>
+          <ul className="mt-2 space-y-2">
+            {job.tanks.map((t, i) => (
+              <li
+                key={i}
+                className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-sm"
+              >
+                <span className="font-medium capitalize text-slate-800">
+                  {t.name || `${t.tankType} tank`}
+                </span>
+                <span className="text-slate-500">
+                  {" · "}
+                  {t.tankType} · {t.capacityLitres} L
+                  {t.quantity && t.quantity > 1 ? ` · ×${t.quantity}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
       {/* Step-driven workflow — only the valid next action is shown. */}
       {error && <p className="text-sm text-red-600">{error}</p>}
 

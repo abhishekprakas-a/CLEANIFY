@@ -60,7 +60,7 @@ export const jobService = {
     await dbConnect();
     const filter: Record<string, unknown> = {};
     if (filters.status) filter.status = filters.status;
-    if (filters.technician) filter.assignedTechnician = filters.technician;
+    if (filters.technician) filter.assignedTechnicians = filters.technician;
     if (filters.date) {
       const start = new Date(filters.date);
       start.setHours(0, 0, 0, 0);
@@ -77,7 +77,7 @@ export const jobService = {
         .skip(skip)
         .limit(query.limit)
         .populate("customer", "customerName mobileNumber address")
-        .populate("assignedTechnician", "name phone")
+        .populate("assignedTechnicians", "name phone")
         .lean(),
       jobModel.countDocuments(filter),
     ]);
@@ -101,13 +101,15 @@ export const jobService = {
     const doc = await jobModel
       .findById(id)
       .populate("customer")
-      .populate("assignedTechnician", "name phone")
+      .populate("assignedTechnicians", "name phone")
       .lean();
     if (!doc) throw ApiError.notFound("Job not found");
 
     if (
       user.role === roles.technician &&
-      String(doc.assignedTechnician?._id ?? doc.assignedTechnician) !== user.id
+      !(doc.assignedTechnicians ?? []).some(
+        (t) => String((t as { _id?: unknown })?._id ?? t) === user.id,
+      )
     ) {
       throw ApiError.forbidden();
     }
@@ -123,7 +125,7 @@ export const jobService = {
 
     if (
       user.role === roles.technician &&
-      String(job.assignedTechnician) !== user.id
+      !(job.assignedTechnicians ?? []).some((t) => String(t) === user.id)
     ) {
       throw ApiError.forbidden();
     }
@@ -163,6 +165,8 @@ export const jobService = {
       jobCode,
       booking: booking._id,
       customer: booking.customerId,
+      tanks: booking.tanks,
+      totalCharge: booking.totalCharge,
       scheduledDate: input.scheduledDate,
       scheduledTime: input.scheduledTime || undefined,
       status: jobStatus.pending,
@@ -217,7 +221,7 @@ export const jobService = {
 
     // Technician guards.
     if (user.role === roles.technician) {
-      if (String(job.assignedTechnician) !== user.id) {
+      if (!job.assignedTechnicians.some((t) => String(t) === user.id)) {
         throw ApiError.forbidden("This job is not assigned to you");
       }
       if (next === jobStatus.reachedSite) {

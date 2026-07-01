@@ -7,11 +7,18 @@ const timeSchema = z
   .optional()
   .or(z.literal(""));
 
+/** One tank line in a job/booking. */
+export const tankEntrySchema = z.object({
+  name: z.string().trim().optional(),
+  tankType: z.enum(allTankTypes as [string, ...string[]]),
+  capacityLitres: z.coerce.number().int().min(1, "Capacity is required"),
+  quantity: z.coerce.number().int().min(1).optional(),
+  cleaningCharge: z.coerce.number().min(0).optional(),
+});
+
 export const createBookingSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
-  tankType: z.enum(allTankTypes as [string, ...string[]]),
-  tankCapacity: z.coerce.number().int().min(1, "Capacity is required"),
-  numberOfTanks: z.coerce.number().int().min(1, "At least one tank"),
+  tanks: z.array(tankEntrySchema).min(1, "Add at least one tank"),
   scheduledDate: z.coerce.date(),
   scheduledTime: timeSchema,
   specialInstructions: z.string().trim().optional(),
@@ -42,6 +49,7 @@ export const bookingQuerySchema = z.object({
     .optional(),
 });
 
+export type TankEntryInput = z.infer<typeof tankEntrySchema>;
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
 export type UpdateBookingInput = z.infer<typeof updateBookingSchema>;
 export type RescheduleBookingInput = z.infer<typeof rescheduleBookingSchema>;

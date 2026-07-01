@@ -4,6 +4,7 @@ export { roleService } from "./roleService";
 export { customerService } from "./customerService";
 export { bookingService } from "./bookingService";
 export { jobService } from "./jobService";
+export { jobIntakeService } from "./jobIntakeService";
 export { schedulingService } from "./schedulingService";
 export { attendanceService } from "./attendanceService";
 export { photoService } from "./photoService";

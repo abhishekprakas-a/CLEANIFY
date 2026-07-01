@@ -1,5 +1,6 @@
 import mongoose, { Schema, type Model } from "mongoose";
 import { allJobStatuses, jobStatus, paymentStatus, slot } from "@/constants";
+import { tankEntrySchema, type TankEntryDocument } from "./tankSchema";
 
 export interface JobStatusEventDocument {
   status: string;
@@ -13,7 +14,9 @@ export interface JobDocument {
   jobCode: string;
   booking: mongoose.Types.ObjectId;
   customer: mongoose.Types.ObjectId;
-  assignedTechnician?: mongoose.Types.ObjectId;
+  assignedTechnicians: mongoose.Types.ObjectId[];
+  tanks: TankEntryDocument[];
+  totalCharge?: number;
   scheduledDate?: Date;
   scheduledTime?: string; // HH:mm
   scheduledSlot?: string; // legacy morning/afternoon/evening
@@ -51,7 +54,12 @@ const jobSchema = new Schema<JobDocument>(
       unique: true,
     },
     customer: { type: Schema.Types.ObjectId, ref: "Customer", required: true },
-    assignedTechnician: { type: Schema.Types.ObjectId, ref: "User" },
+    assignedTechnicians: {
+      type: [{ type: Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+    },
+    tanks: { type: [tankEntrySchema], default: [] },
+    totalCharge: { type: Number, min: 0 },
     scheduledDate: { type: Date },
     scheduledTime: { type: String },
     scheduledSlot: { type: String, enum: Object.values(slot) },
@@ -78,8 +86,8 @@ const jobSchema = new Schema<JobDocument>(
   { timestamps: true },
 );
 
-jobSchema.index({ assignedTechnician: 1, status: 1 });
-jobSchema.index({ assignedTechnician: 1, scheduledDate: 1 });
+jobSchema.index({ assignedTechnicians: 1, status: 1 });
+jobSchema.index({ assignedTechnicians: 1, scheduledDate: 1 });
 jobSchema.index({ scheduledDate: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ status: 1, completedAt: 1 }); // completion / productivity reports

@@ -7,12 +7,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TanksField, emptyTank } from "@/components/tanks/tanksField";
 import { api } from "@/hooks/useApi";
 import {
   createBookingSchema,
   type CreateBookingInput,
 } from "@/schemas/bookingSchema";
-import { allTankTypes, routes } from "@/constants";
+import { routes } from "@/constants";
 import type { Booking, Customer } from "@/types";
 
 const fieldClass =
@@ -29,14 +30,14 @@ export function BookingForm({
 
   const {
     register,
+    control,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<CreateBookingInput>({
     resolver: zodResolver(createBookingSchema),
     defaultValues: {
       customerId: defaultCustomerId ?? "",
-      tankType: "overhead",
-      numberOfTanks: 1,
+      tanks: [emptyTank as never],
     },
   });
 
@@ -91,42 +92,7 @@ export function BookingForm({
         )}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="tankType"
-          className="text-sm font-medium text-slate-700"
-        >
-          Tank type
-        </label>
-        <select
-          id="tankType"
-          className={`${fieldClass} capitalize`}
-          {...register("tankType")}
-        >
-          {allTankTypes.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <Input
-          label="Tank capacity (litres)"
-          type="number"
-          min={1}
-          error={errors.tankCapacity?.message}
-          {...register("tankCapacity")}
-        />
-        <Input
-          label="Number of tanks"
-          type="number"
-          min={1}
-          error={errors.numberOfTanks?.message}
-          {...register("numberOfTanks")}
-        />
-      </div>
+      <TanksField control={control} register={register} errors={errors} />
 
       <div className="grid grid-cols-2 gap-4">
         <Input

@@ -65,7 +65,8 @@ export const reviewService = {
     const created = await reviewModel.create({
       jobId: job._id,
       customerId: job.customer,
-      technicianId: job.assignedTechnician,
+      // Credit the primary (first) crew member — keeps reviews single-tech.
+      technicianId: job.assignedTechnicians[0],
       starRating: input.starRating,
       reviewComment: input.reviewComment,
       satisfactionStatus:
@@ -160,17 +161,22 @@ export const reviewService = {
       .sort({ completedAt: -1 })
       .limit(100)
       .populate("customer", "customerName")
-      .populate("assignedTechnician", "name")
+      .populate("assignedTechnicians", "name")
       .lean();
 
     return jobs.map((job) => {
       const customer = job.customer as { customerName?: string } | undefined;
-      const tech = job.assignedTechnician as { name?: string } | undefined;
+      const techs =
+        (job.assignedTechnicians as { name?: string }[] | undefined) ?? [];
       return {
         jobId: String(job._id),
         jobCode: job.jobCode,
         customerName: customer?.customerName ?? "—",
-        technicianName: tech?.name,
+        technicianName:
+          techs
+            .map((t) => t?.name)
+            .filter(Boolean)
+            .join(", ") || undefined,
         completedAt: job.completedAt
           ? new Date(job.completedAt).toISOString()
           : undefined,

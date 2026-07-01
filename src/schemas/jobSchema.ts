@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { allJobStatuses, calendarView } from "@/constants";
+import { tankEntrySchema } from "./bookingSchema";
 
 const timeSchema = z
   .string()
@@ -14,22 +15,57 @@ export const createJobSchema = z.object({
   scheduledTime: timeSchema,
 });
 
+/**
+ * Unified "Job Card" intake — creates customer (if new) + booking + job in one
+ * step. `customer.id` selects an existing customer; otherwise the inline
+ * details create a new one.
+ */
+export const jobIntakeSchema = z
+  .object({
+    customer: z.object({
+      id: z.string().optional(),
+      customerName: z.string().trim().optional(),
+      mobileNumber: z.string().trim().optional(),
+      address: z.string().trim().optional(),
+      googleMapLocation: z.string().trim().optional(),
+      notes: z.string().trim().optional(),
+    }),
+    tanks: z.array(tankEntrySchema).min(1, "Add at least one tank"),
+    scheduledDate: z.coerce.date(),
+    scheduledTime: timeSchema,
+    specialInstructions: z.string().trim().optional(),
+    technicianIds: z.array(z.string().min(1)).default([]),
+  })
+  .refine(
+    (v) =>
+      Boolean(v.customer.id) ||
+      (Boolean(v.customer.customerName) && Boolean(v.customer.mobileNumber)),
+    {
+      message: "Select an existing customer or enter name and mobile number",
+      path: ["customer"],
+    },
+  );
+
 /** Set/replace the job's date & time → moves a pending job to `scheduled`. */
 export const scheduleJobSchema = z.object({
   scheduledDate: z.coerce.date(),
   scheduledTime: timeSchema,
 });
 
-/** Assign a technician (with optional date/time) → `assigned`. */
+/** Assign one or more technicians (with optional date/time) → `assigned`. */
 export const assignJobSchema = z.object({
-  technicianId: z.string().min(1, "Technician is required"),
+  technicianIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one technician"),
   scheduledDate: z.coerce.date().optional(),
   scheduledTime: timeSchema,
 });
 
-/** Move the job to a different technician. */
+/** Replace the job's crew with a different set of technicians. */
 export const reassignJobSchema = z.object({
-  technicianId: z.string().min(1, "Technician is required"),
+  technicianIds: z
+    .array(z.string().min(1))
+    .min(1, "Select at least one technician"),
   note: z.string().trim().optional(),
 });
 
@@ -65,6 +101,7 @@ export const availabilityQuerySchema = z.object({
 });
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
+export type JobIntakeInput = z.infer<typeof jobIntakeSchema>;
 export type ScheduleJobInput = z.infer<typeof scheduleJobSchema>;
 export type AssignJobInput = z.infer<typeof assignJobSchema>;
 export type ReassignJobInput = z.infer<typeof reassignJobSchema>;

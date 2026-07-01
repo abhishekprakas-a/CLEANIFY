@@ -65,7 +65,7 @@ interface PopulatedRef {
 
 function toScheduledJob(doc: Record<string, unknown>): ScheduledJob {
   const customer = doc.customer as PopulatedRef | undefined;
-  const tech = doc.assignedTechnician as PopulatedRef | undefined;
+  const techs = (doc.assignedTechnicians as PopulatedRef[] | undefined) ?? [];
   return {
     id: String(doc._id),
     jobCode: String(doc.jobCode),
@@ -81,9 +81,9 @@ function toScheduledJob(doc: Record<string, unknown>): ScheduledJob {
           mobileNumber: customer.mobileNumber ?? "",
         }
       : undefined,
-    assignedTechnician: tech?._id
-      ? { id: String(tech._id), name: tech.name ?? "" }
-      : undefined,
+    assignedTechnicians: techs
+      .filter((t) => t?._id)
+      .map((t) => ({ id: String(t._id), name: t.name ?? "" })),
   };
 }
 
@@ -96,13 +96,13 @@ async function findScheduledJobs(
     scheduledDate: { $gte: start, $lt: end },
     status: { $nin: [jobStatus.cancelled] },
   };
-  if (technicianId) filter.assignedTechnician = technicianId;
+  if (technicianId) filter.assignedTechnicians = technicianId;
 
   const docs = await jobModel
     .find(filter)
     .sort({ scheduledDate: 1, scheduledTime: 1 })
     .populate("customer", "customerName mobileNumber")
-    .populate("assignedTechnician", "name")
+    .populate("assignedTechnicians", "name")
     .lean();
 
   return docs.map((d) => toScheduledJob(d as Record<string, unknown>));
@@ -123,7 +123,7 @@ export const schedulingService = {
   ): Promise<Job | null> {
     const { start, end } = dayRange(date);
     const filter: Record<string, unknown> = {
-      assignedTechnician: technicianId,
+      assignedTechnicians: technicianId,
       status: { $nin: terminalJobStatuses },
       scheduledDate: { $gte: start, $lt: end },
     };
@@ -149,12 +149,12 @@ export const schedulingService = {
     const { start, end } = dayRange(parseDate(dateStr));
     const docs = await jobModel
       .find({
-        assignedTechnician: technicianId,
+        assignedTechnicians: technicianId,
         status: { $nin: terminalJobStatuses },
         scheduledDate: { $gte: start, $lt: end },
       })
       .populate("customer", "customerName mobileNumber")
-      .populate("assignedTechnician", "name")
+      .populate("assignedTechnicians", "name")
       .lean();
 
     const jobs = docs.map((d) => toScheduledJob(d as Record<string, unknown>));
@@ -195,7 +195,7 @@ export const schedulingService = {
 
     const { start, end } = dayRange(date);
     const sameDay = await jobModel.countDocuments({
-      assignedTechnician: technicianId,
+      assignedTechnicians: technicianId,
       status: { $nin: terminalJobStatuses },
       scheduledDate: { $gte: start, $lt: end },
       ...(excludeJobId ? { _id: { $ne: excludeJobId } } : {}),
@@ -207,7 +207,11 @@ export const schedulingService = {
     }
   },
 
-  /** Assign a technician + (optional) date/time. Moves the job to `assigned`. */
+  /**
+   * Assign one or more technicians + (optional) date/time. Moves the job to
+   * `assigned`. Each technician gets their own active jobAssignment and is
+   * capacity/conflict-checked independently.
+   */
   async assign(
     jobId: string,
     input: AssignJobInput,
@@ -226,16 +230,19 @@ export const schedulingService = {
     }
     const scheduledTime = input.scheduledTime || job.scheduledTime;
 
-    await schedulingService.assertTechnicianAvailable(
-      input.technicianId,
-      scheduledDate,
-      scheduledTime,
-      jobId,
-    );
+    const technicianIds = [...new Set(input.technicianIds)];
+    for (const technicianId of technicianIds) {
+      await schedulingService.assertTechnicianAvailable(
+        technicianId,
+        scheduledDate,
+        scheduledTime,
+        jobId,
+      );
+    }
 
     job.scheduledDate = scheduledDate;
     job.scheduledTime = scheduledTime;
-    job.assignedTechnician = input.technicianId as never;
+    job.assignedTechnicians = technicianIds as never;
 
     // pending → scheduled → assigned (skip the first hop if already scheduled).
     if (job.status === jobStatus.pending) {
@@ -246,15 +253,22 @@ export const schedulingService = {
     }
     await job.save();
 
-    await jobAssignmentModel.create({
-      job: job._id,
-      technician: input.technicianId,
-      assignedBy: user.id,
-      assignedAt: new Date(),
-      scheduledDate,
-      scheduledTime,
-      status: assignmentStatus.active,
-    });
+    // Supersede any prior active assignments, then record one per technician.
+    await jobAssignmentModel.updateMany(
+      { job: job._id, status: assignmentStatus.active },
+      { status: assignmentStatus.reassigned },
+    );
+    await jobAssignmentModel.insertMany(
+      technicianIds.map((technicianId) => ({
+        job: job._id,
+        technician: technicianId,
+        assignedBy: user.id,
+        assignedAt: new Date(),
+        scheduledDate,
+        scheduledTime,
+        status: assignmentStatus.active,
+      })),
+    );
 
     await bookingModel.findByIdAndUpdate(job.booking, {
       bookingStatus: bookingStatus.scheduled,
@@ -263,7 +277,7 @@ export const schedulingService = {
     return toDto<Job>(job.toObject());
   },
 
-  /** Move an assigned job to a different technician (job stays `assigned`). */
+  /** Replace an assigned job's crew (job stays `assigned`). */
   async reassign(
     jobId: string,
     input: ReassignJobInput,
@@ -279,29 +293,34 @@ export const schedulingService = {
     }
     if (!job.scheduledDate) throw ApiError.badRequest("Job has no schedule");
 
-    await schedulingService.assertTechnicianAvailable(
-      input.technicianId,
-      job.scheduledDate,
-      job.scheduledTime,
-      jobId,
-    );
+    const technicianIds = [...new Set(input.technicianIds)];
+    for (const technicianId of technicianIds) {
+      await schedulingService.assertTechnicianAvailable(
+        technicianId,
+        job.scheduledDate,
+        job.scheduledTime,
+        jobId,
+      );
+    }
 
     await jobAssignmentModel.updateMany(
       { job: job._id, status: assignmentStatus.active },
       { status: assignmentStatus.reassigned },
     );
-    await jobAssignmentModel.create({
-      job: job._id,
-      technician: input.technicianId,
-      assignedBy: user.id,
-      assignedAt: new Date(),
-      scheduledDate: job.scheduledDate,
-      scheduledTime: job.scheduledTime,
-      status: assignmentStatus.active,
-      note: input.note,
-    });
+    await jobAssignmentModel.insertMany(
+      technicianIds.map((technicianId) => ({
+        job: job._id,
+        technician: technicianId,
+        assignedBy: user.id,
+        assignedAt: new Date(),
+        scheduledDate: job.scheduledDate,
+        scheduledTime: job.scheduledTime,
+        status: assignmentStatus.active,
+        note: input.note,
+      })),
+    );
 
-    job.assignedTechnician = input.technicianId as never;
+    job.assignedTechnicians = technicianIds as never;
     job.statusHistory.push({
       status: jobStatus.assigned,
       at: new Date(),
@@ -327,9 +346,9 @@ export const schedulingService = {
     }
 
     const scheduledTime = input.scheduledTime || undefined;
-    if (job.assignedTechnician) {
+    for (const technicianId of job.assignedTechnicians ?? []) {
       await schedulingService.assertTechnicianAvailable(
-        String(job.assignedTechnician),
+        String(technicianId),
         input.scheduledDate,
         scheduledTime,
         jobId,

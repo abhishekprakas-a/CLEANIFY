@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/hooks/useApi";
@@ -9,9 +10,9 @@ import { allJobStatuses, routes, terminalJobStatuses } from "@/constants";
 import type { Job, PaginationMeta, User } from "@/types";
 
 type PopRef = { name?: string; customerName?: string };
-type JobRow = Omit<Job, "customer" | "assignedTechnician"> & {
+type JobRow = Omit<Job, "customer" | "assignedTechnicians"> & {
   customer?: string | PopRef;
-  assignedTechnician?: string | PopRef;
+  assignedTechnicians?: (string | PopRef)[];
 };
 
 const fieldClass = "h-10 rounded-lg border border-slate-300 px-3 text-sm";
@@ -20,6 +21,12 @@ function name(ref: unknown, key: "name" | "customerName"): string {
   return typeof ref === "object" && ref
     ? ((ref as Record<string, string>)[key] ?? "—")
     : "—";
+}
+function crewNames(refs?: (string | PopRef)[]): string {
+  const names = (refs ?? [])
+    .map((r) => (typeof r === "object" && r ? r.name : undefined))
+    .filter(Boolean);
+  return names.length > 0 ? names.join(", ") : "—";
 }
 function fmt(iso?: string): string {
   return iso ? new Date(iso).toLocaleDateString() : "—";
@@ -77,31 +84,36 @@ export function JobsTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className={`${fieldClass} capitalize`}
-        >
-          <option value="">All statuses</option>
-          {allJobStatuses.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select
-          value={technicianId}
-          onChange={(e) => setTechnicianId(e.target.value)}
-          className={fieldClass}
-        >
-          <option value="">All technicians</option>
-          {technicians.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            className={`${fieldClass} capitalize`}
+          >
+            <option value="">All statuses</option>
+            {allJobStatuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={technicianId}
+            onChange={(e) => setTechnicianId(e.target.value)}
+            className={fieldClass}
+          >
+            <option value="">All technicians</option>
+            {technicians.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Link href={routes.admin.jobNew}>
+          <Button>+ New job</Button>
+        </Link>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -145,7 +157,7 @@ export function JobsTable() {
                     {name(j.customer, "customerName")}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
-                    {name(j.assignedTechnician, "name")}
+                    {crewNames(j.assignedTechnicians)}
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {fmt(j.scheduledDate)}

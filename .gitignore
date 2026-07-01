@@ -6,6 +6,11 @@
 # testing
 /coverage
 
+# local-only test harness / probes (not tracked in git)
+/src/scripts/e2eTest.ts
+/src/scripts/_*.ts
+*.e2e.ts
+
 # next.js
 /.next/
 /out/
@@ -17,6 +22,8 @@ next-env.d.ts
 /public/worker-*.js
 /public/sw.js.map
 /public/workbox-*.js.map
+/public/worker-*.js.map
+/public/fallback-*.js
 
 # production
 /build
@@ -36,3 +43,10 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+#docs
+docs
+
+# local editor/session config + generated reports (not tracked)
+.claude/
+*.docx
