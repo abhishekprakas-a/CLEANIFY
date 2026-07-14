@@ -239,6 +239,12 @@ export function BookingTable() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex justify-end gap-2">
+                      <Link
+                        href={`${routes.admin.bookings}/${b.id}`}
+                        className="text-sm font-medium text-slate-600 hover:text-slate-800"
+                      >
+                        View
+                      </Link>
                       {b.bookingStatus === "pending" && (
                         <button
                           onClick={() => onCreateJob(b)}
@@ -247,6 +253,16 @@ export function BookingTable() {
                           Create job
                         </button>
                       )}
+                      <Link
+                        href={`${routes.admin.bookings}/${b.id}/edit`}
+                        className={`text-sm font-medium ${
+                          isTerminal(b.bookingStatus)
+                            ? "pointer-events-none opacity-40"
+                            : "text-brand-600 hover:text-brand-700"
+                        }`}
+                      >
+                        Edit
+                      </Link>
                       <button
                         onClick={() => onReschedule(b)}
                         disabled={isTerminal(b.bookingStatus)}

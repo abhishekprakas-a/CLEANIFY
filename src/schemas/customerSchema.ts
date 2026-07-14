@@ -14,10 +14,13 @@ const mobileNumberSchema = z
   .trim()
   .regex(/^[+]?[0-9\s-]{8,15}$/, "Enter a valid mobile number");
 
+// Location links are a convenience field. Accept anything a user might paste —
+// full URLs, protocol-less short links (maps.app.goo.gl/…), or links shared from
+// WhatsApp/Maps — rather than rejecting valid links that fail strict URL parsing.
 const googleMapLocationSchema = z
   .string()
   .trim()
-  .url("Enter a valid Google Maps link")
+  .max(500, "Link is too long")
   .optional()
   .or(z.literal(""));
 

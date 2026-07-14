@@ -10,6 +10,8 @@ export async function GET(req: NextRequest) {
   return handleRoute(async () => {
     const user = await requireRole([roles.technician]);
     const query = parseListQuery(req.nextUrl.searchParams);
+    // Show the most recent work first (BG-03) unless the caller sorts explicitly.
+    if (!req.nextUrl.searchParams.get("sort")) query.sort = "-scheduledDate";
     const { items, meta } = await jobService.listForTechnician(user.id, query);
     return ok(items, meta);
   });

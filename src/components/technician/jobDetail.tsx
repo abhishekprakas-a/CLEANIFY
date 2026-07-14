@@ -27,7 +27,12 @@ function customerOf(job: DetailJob): PopulatedCustomer {
 }
 
 function mapsUrl(c: PopulatedCustomer): string | null {
-  if (c.googleMapLocation) return c.googleMapLocation;
+  if (c.googleMapLocation) {
+    // Accept links pasted without a scheme (e.g. from WhatsApp) — BG-05.
+    return /^https?:\/\//i.test(c.googleMapLocation)
+      ? c.googleMapLocation
+      : `https://${c.googleMapLocation}`;
+  }
   if (c.address)
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}`;
   return null;

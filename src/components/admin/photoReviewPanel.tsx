@@ -46,7 +46,9 @@ export function PhotoReviewPanel() {
   }
 
   async function reject(photo: Photo) {
-    const reason = prompt("Reason for rejection:");
+    const reason = prompt(
+      "What needs improvement? (sent back to the technician)",
+    );
     if (!reason) return;
     setBusy(photo.id);
     try {
@@ -126,7 +128,7 @@ export function PhotoReviewPanel() {
                       disabled={busy === photo.id}
                       onClick={() => reject(photo)}
                     >
-                      Reject
+                      Need improvement
                     </Button>
                   </div>
                 )}
@@ -135,8 +137,8 @@ export function PhotoReviewPanel() {
           </div>
 
           <p className="mt-3 text-xs text-slate-400">
-            Approving every photo advances the job; rejecting one sends it back
-            to the technician.
+            Approving every photo advances the job; marking one as “Need
+            improvement” sends it back to the technician.
           </p>
         </Card>
       ))}

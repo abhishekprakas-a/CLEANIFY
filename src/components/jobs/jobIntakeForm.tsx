@@ -89,6 +89,20 @@ export function JobIntakeForm() {
     }
   }
 
+  /** Jump to the new-customer form, carrying whatever was typed in the search. */
+  function startNewCustomer() {
+    const q = search.trim();
+    switchMode("new");
+    if (q) {
+      const looksLikePhone = /^[+]?[0-9\s-]{5,}$/.test(q);
+      setValue(
+        looksLikePhone ? "customer.mobileNumber" : "customer.customerName",
+        q,
+      );
+    }
+    setSearch("");
+  }
+
   async function onSubmit(values: JobIntakeInput) {
     setServerError(null);
     try {
@@ -168,9 +182,16 @@ export function JobIntakeForm() {
                 />
                 <div className="divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
                   {filtered.length === 0 ? (
-                    <p className="px-3 py-3 text-sm text-slate-400">
-                      No matching customers. Switch to “New customer”.
-                    </p>
+                    <div className="px-3 py-3 text-sm text-slate-400">
+                      No matching customers.
+                      <button
+                        type="button"
+                        onClick={startNewCustomer}
+                        className="ml-1 font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        + Add “{search.trim() || "new customer"}”
+                      </button>
+                    </div>
                   ) : (
                     filtered.map((c) => (
                       <button
@@ -190,6 +211,13 @@ export function JobIntakeForm() {
                     ))
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={startNewCustomer}
+                  className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                >
+                  + Add new customer
+                </button>
               </>
             )}
           </div>
