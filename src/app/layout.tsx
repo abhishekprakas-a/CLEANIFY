@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { env } from "@/lib/env";
 import { Toaster } from "@/components/ui/toaster";
+import { InstallPrompt } from "@/components/pwa/installPrompt";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body>
         {children}
         <Toaster />
+        <InstallPrompt />
       </body>
     </html>
   );
