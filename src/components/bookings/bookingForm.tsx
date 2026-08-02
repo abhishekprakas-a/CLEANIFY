@@ -7,13 +7,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { TanksField, emptyTank } from "@/components/tanks/tanksField";
+import {
+  TanksField,
+  emptyItemFor,
+  emptyTank,
+} from "@/components/tanks/tanksField";
 import { api } from "@/hooks/useApi";
 import {
   createBookingSchema,
   type CreateBookingInput,
 } from "@/schemas/bookingSchema";
-import { routes } from "@/constants";
+import {
+  allServiceTypes,
+  routes,
+  serviceConfig,
+  type ServiceType,
+} from "@/constants";
 import type { Booking, Customer, TankEntry } from "@/types";
 
 const fieldClass =
@@ -53,12 +62,16 @@ export function BookingForm({
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<CreateBookingInput>({
     resolver: zodResolver(createBookingSchema),
     defaultValues: booking
       ? {
           customerId: booking.customerId,
+          serviceType: booking.serviceType ?? "waterTank",
+          workName: booking.workName ?? "",
+          totalCharge: booking.totalCharge as never,
           tanks: booking.tanks as TankEntry[],
           scheduledDate: toDateInput(booking.scheduledDate) as never,
           scheduledTime: booking.scheduledTime ?? "",
@@ -66,11 +79,20 @@ export function BookingForm({
         }
       : {
           customerId: defaultCustomerId ?? "",
+          serviceType: "waterTank",
+          workName: "",
           tanks: [emptyTank as never],
         },
   });
 
   const selectedCustomerId = watch("customerId");
+  const selectedService = (watch("serviceType") ?? "waterTank") as ServiceType;
+
+  // Switching service replaces the items with a fresh one for that service.
+  function changeService(next: ServiceType) {
+    setValue("serviceType", next);
+    setValue("tanks", [emptyItemFor(next) as never]);
+  }
 
   useEffect(() => {
     api
@@ -210,7 +232,51 @@ export function BookingForm({
         )}
       </div>
 
-      <TanksField control={control} register={register} errors={errors} />
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="serviceType"
+            className="text-sm font-medium text-slate-700"
+          >
+            Service type
+          </label>
+          <select
+            id="serviceType"
+            className={fieldClass}
+            value={selectedService}
+            onChange={(e) => changeService(e.target.value as ServiceType)}
+          >
+            {allServiceTypes.map((s) => (
+              <option key={s} value={s}>
+                {serviceConfig[s].label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Input
+          label="Work name (optional)"
+          placeholder="e.g. Water tank cleaning"
+          {...register("workName")}
+        />
+      </div>
+
+      <TanksField
+        control={control}
+        register={register}
+        errors={errors}
+        getValues={getValues}
+        serviceType={selectedService}
+      />
+
+      <Input
+        label="Total amount (₹)"
+        type="number"
+        min={0}
+        step="0.01"
+        placeholder="Total charge for this booking"
+        error={errors.totalCharge?.message as string | undefined}
+        {...register("totalCharge")}
+      />
 
       <div className="grid grid-cols-2 gap-4">
         <Input

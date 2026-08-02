@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { allJobStatuses, calendarView } from "@/constants";
+import { allJobStatuses, allServiceTypes, calendarView } from "@/constants";
 import { tankEntrySchema } from "./bookingSchema";
 
 const timeSchema = z
@@ -30,7 +30,12 @@ export const jobIntakeSchema = z
       googleMapLocation: z.string().trim().optional(),
       notes: z.string().trim().optional(),
     }),
-    tanks: z.array(tankEntrySchema).min(1, "Add at least one tank"),
+    serviceType: z
+      .enum(allServiceTypes as [string, ...string[]])
+      .default("waterTank"),
+    workName: z.string().trim().optional(),
+    totalCharge: z.coerce.number().min(0).optional(),
+    tanks: z.array(tankEntrySchema).min(1, "Add at least one item"),
     scheduledDate: z.coerce.date(),
     scheduledTime: timeSchema,
     specialInstructions: z.string().trim().optional(),

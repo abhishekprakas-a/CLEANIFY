@@ -8,8 +8,8 @@ import type {
   PhotoKind,
   Role,
   SatisfactionStatus,
+  ServiceType,
   Slot,
-  TankType,
   UserStatus,
 } from "@/constants";
 
@@ -103,18 +103,25 @@ export interface BookingStatusEvent {
   note?: string;
 }
 
-/** One tank within a job/booking (a property can have several). */
+/**
+ * One line item within a job/booking. Generic across service types: `tankType`
+ * holds the variant, `capacityLitres` the numeric measure (unit varies).
+ */
 export interface TankEntry {
   name?: string;
-  tankType: TankType;
-  capacityLitres: number;
+  tankType: string;
+  capacityLitres?: number;
   quantity?: number;
   cleaningCharge?: number;
+  /** Work risk rating, 1 (low) – 10 (high). */
+  risk?: number;
 }
 
 export interface Booking {
   id: Id;
   customerId: Id;
+  serviceType: ServiceType;
+  workName?: string;
   tanks: TankEntry[];
   totalCharge?: number;
   scheduledDate: string;
@@ -149,6 +156,8 @@ export interface Job {
   booking: Id;
   customer: Id;
   assignedTechnicians: Id[];
+  serviceType: ServiceType;
+  workName?: string;
   tanks: TankEntry[];
   totalCharge?: number;
   scheduledDate?: string;

@@ -12,6 +12,8 @@ export interface BookingStatusEventDocument {
 export interface BookingDocument {
   _id: mongoose.Types.ObjectId;
   customerId: mongoose.Types.ObjectId;
+  serviceType: string;
+  workName?: string;
   tanks: TankEntryDocument[];
   totalCharge?: number;
   scheduledDate: Date;
@@ -43,6 +45,8 @@ const bookingSchema = new Schema<BookingDocument>(
       required: true,
       index: true,
     },
+    serviceType: { type: String, default: "waterTank" },
+    workName: { type: String, trim: true },
     tanks: {
       type: [tankEntrySchema],
       required: true,

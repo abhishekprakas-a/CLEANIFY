@@ -7,10 +7,19 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { TanksField, emptyTank } from "@/components/tanks/tanksField";
+import {
+  TanksField,
+  emptyItemFor,
+  emptyTank,
+} from "@/components/tanks/tanksField";
 import { api } from "@/hooks/useApi";
 import { jobIntakeSchema, type JobIntakeInput } from "@/schemas/jobSchema";
-import { routes } from "@/constants";
+import {
+  allServiceTypes,
+  routes,
+  serviceConfig,
+  type ServiceType,
+} from "@/constants";
 import type { Customer, Job, User } from "@/types";
 
 const fieldClass =
@@ -32,18 +41,28 @@ export function JobIntakeForm() {
     handleSubmit,
     setValue,
     watch,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<JobIntakeInput>({
     resolver: zodResolver(jobIntakeSchema),
     defaultValues: {
       customer: { id: "" },
+      serviceType: "waterTank",
+      workName: "",
       tanks: [emptyTank as never],
       technicianIds: [],
       scheduledTime: "",
+      totalCharge: undefined,
     },
   });
 
   const selectedCustomerId = watch("customer.id");
+  const selectedService = (watch("serviceType") ?? "waterTank") as ServiceType;
+
+  function changeService(next: ServiceType) {
+    setValue("serviceType", next);
+    setValue("tanks", [emptyItemFor(next) as never]);
+  }
 
   useEffect(() => {
     api
@@ -259,9 +278,47 @@ export function JobIntakeForm() {
         )}
       </section>
 
-      {/* --- Tanks --------------------------------------------------------- */}
-      <section className="border-t border-slate-100 pt-5">
-        <TanksField control={control} register={register} errors={errors} />
+      {/* --- Service + items ---------------------------------------------- */}
+      <section className="space-y-3 border-t border-slate-100 pt-5">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">
+              Service type
+            </label>
+            <select
+              className={fieldClass}
+              value={selectedService}
+              onChange={(e) => changeService(e.target.value as ServiceType)}
+            >
+              {allServiceTypes.map((s) => (
+                <option key={s} value={s}>
+                  {serviceConfig[s].label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Work name (optional)"
+            placeholder="e.g. Water tank cleaning"
+            {...register("workName")}
+          />
+        </div>
+        <TanksField
+          control={control}
+          register={register}
+          errors={errors}
+          getValues={getValues}
+          serviceType={selectedService}
+        />
+        <Input
+          label="Total amount (₹)"
+          type="number"
+          min={0}
+          step="0.01"
+          placeholder="Total charge for this job"
+          error={errors.totalCharge?.message}
+          {...register("totalCharge")}
+        />
       </section>
 
       {/* --- Schedule ------------------------------------------------------ */}

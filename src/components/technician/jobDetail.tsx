@@ -9,7 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { PhotoUploader } from "@/components/technician/photoUploader";
 import { JobTimeline } from "@/components/technician/jobTimeline";
 import { api } from "@/hooks/useApi";
-import { jobStatus, routes } from "@/constants";
+import {
+  jobStatus,
+  routes,
+  serviceConfig,
+  type ServiceType,
+} from "@/constants";
 import type { Job } from "@/types";
 
 type PopulatedCustomer = {
@@ -98,6 +103,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <h1 className="text-xl font-bold text-slate-800">{job.jobCode}</h1>
           <Badge status={status} />
         </div>
+        {job.workName && (
+          <p className="mt-0.5 text-sm font-medium text-slate-600">
+            {job.workName}
+          </p>
+        )}
       </div>
 
       <Card>
@@ -127,28 +137,53 @@ export function JobDetail({ jobId }: { jobId: string }) {
         )}
       </Card>
 
-      {(job.tanks ?? []).length > 0 && (
-        <Card>
-          <CardTitle>Tanks to clean ({job.tanks.length})</CardTitle>
-          <ul className="mt-2 space-y-2">
-            {job.tanks.map((t, i) => (
-              <li
-                key={i}
-                className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-sm"
-              >
-                <span className="font-medium capitalize text-slate-800">
-                  {t.name || `${t.tankType} tank`}
-                </span>
-                <span className="text-slate-500">
-                  {" · "}
-                  {t.tankType} · {t.capacityLitres} L
-                  {t.quantity && t.quantity > 1 ? ` · ×${t.quantity}` : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+      {(job.tanks ?? []).length > 0 &&
+        (() => {
+          const cfg =
+            serviceConfig[(job.serviceType as ServiceType) ?? "waterTank"] ??
+            serviceConfig.waterTank;
+          return (
+            <Card>
+              <CardTitle>
+                {cfg.itemLabel}s to clean ({job.tanks.length})
+              </CardTitle>
+              <p className="-mt-1 mb-1 text-xs text-slate-400">{cfg.label}</p>
+              <ul className="mt-2 space-y-2">
+                {job.tanks.map((t, i) => (
+                  <li
+                    key={i}
+                    className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-sm"
+                  >
+                    <span className="font-medium capitalize text-slate-800">
+                      {t.name || `${t.tankType} ${cfg.itemLabel.toLowerCase()}`}
+                    </span>
+                    <span className="text-slate-500">
+                      {" · "}
+                      {t.tankType}
+                      {t.capacityLitres != null && cfg.measureUnit
+                        ? ` · ${t.capacityLitres} ${cfg.measureUnit}`
+                        : ""}
+                      {t.quantity && t.quantity > 1 ? ` · ×${t.quantity}` : ""}
+                    </span>
+                    {t.risk != null && (
+                      <span
+                        className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                          t.risk >= 7
+                            ? "bg-red-100 text-red-700"
+                            : t.risk >= 4
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        Risk {t.risk}/10
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          );
+        })()}
 
       {/* Step-driven workflow — only the valid next action is shown. */}
       {error && <p className="text-sm text-red-600">{error}</p>}

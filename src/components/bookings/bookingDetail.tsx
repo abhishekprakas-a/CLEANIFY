@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/hooks/useApi";
-import { routes } from "@/constants";
+import { routes, serviceConfig, type ServiceType } from "@/constants";
 import type { Booking } from "@/types";
 
 type PopulatedCustomer = {
@@ -52,6 +52,9 @@ export function BookingDetail({ id }: { id: string }) {
     return <p className="text-sm text-red-600">{error ?? "Not found"}</p>;
 
   const c = customer(booking);
+  const cfg =
+    serviceConfig[(booking.serviceType as ServiceType) ?? "waterTank"] ??
+    serviceConfig.waterTank;
   const isTerminal =
     booking.bookingStatus === "cancelled" ||
     booking.bookingStatus === "completed";
@@ -71,6 +74,12 @@ export function BookingDetail({ id }: { id: string }) {
           </Link>
         )}
       </div>
+
+      {booking.workName && (
+        <h2 className="text-lg font-semibold text-slate-800">
+          {booking.workName}
+        </h2>
+      )}
 
       <Card>
         <div className="flex items-center justify-between">
@@ -97,7 +106,14 @@ export function BookingDetail({ id }: { id: string }) {
       </Card>
 
       <Card>
-        <CardTitle>Tanks ({booking.tanks?.length ?? 0})</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle>
+            {cfg.itemLabel}s ({booking.tanks?.length ?? 0})
+          </CardTitle>
+          <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+            {cfg.label}
+          </span>
+        </div>
         <ul className="mt-2 space-y-2">
           {(booking.tanks ?? []).map((t, i) => (
             <li
@@ -105,18 +121,17 @@ export function BookingDetail({ id }: { id: string }) {
               className="flex items-center justify-between rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-sm"
             >
               <span className="capitalize text-slate-800">
-                {t.name || `${t.tankType} tank`}
+                {t.name || `${t.tankType} ${cfg.itemLabel.toLowerCase()}`}
                 <span className="text-slate-500">
                   {" · "}
-                  {t.tankType} · {t.capacityLitres} L
+                  {t.tankType}
+                  {t.capacityLitres != null && cfg.measureUnit
+                    ? ` · ${t.capacityLitres} ${cfg.measureUnit}`
+                    : ""}
                   {t.quantity && t.quantity > 1 ? ` · ×${t.quantity}` : ""}
+                  {t.risk != null ? ` · risk ${t.risk}/10` : ""}
                 </span>
               </span>
-              {t.cleaningCharge != null && (
-                <span className="font-medium text-slate-700">
-                  ₹{t.cleaningCharge}
-                </span>
-              )}
             </li>
           ))}
         </ul>

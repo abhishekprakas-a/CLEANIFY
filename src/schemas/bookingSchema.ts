@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { allTankTypes, allBookingStatuses } from "@/constants";
+import { allBookingStatuses, allServiceTypes } from "@/constants";
 
 const timeSchema = z
   .string()
@@ -7,18 +7,28 @@ const timeSchema = z
   .optional()
   .or(z.literal(""));
 
-/** One tank line in a job/booking. */
+/** Blank inputs ("" from the form) become undefined instead of failing. */
+const optionalNumber = (schema: z.ZodTypeAny) =>
+  z.preprocess((v) => (v === "" || v == null ? undefined : v), schema);
+
+/** One line item in a job/booking (generic across service types). */
 export const tankEntrySchema = z.object({
   name: z.string().trim().optional(),
-  tankType: z.enum(allTankTypes as [string, ...string[]]),
-  capacityLitres: z.coerce.number().int().min(1, "Capacity is required"),
-  quantity: z.coerce.number().int().min(1).optional(),
-  cleaningCharge: z.coerce.number().min(0).optional(),
+  tankType: z.string().trim().min(1, "Type is required"),
+  capacityLitres: optionalNumber(z.coerce.number().int().min(1).optional()),
+  quantity: optionalNumber(z.coerce.number().int().min(1).optional()),
+  cleaningCharge: optionalNumber(z.coerce.number().min(0).optional()),
+  risk: optionalNumber(z.coerce.number().int().min(1).max(10).optional()),
 });
 
 export const createBookingSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
-  tanks: z.array(tankEntrySchema).min(1, "Add at least one tank"),
+  serviceType: z
+    .enum(allServiceTypes as [string, ...string[]])
+    .default("waterTank"),
+  workName: z.string().trim().optional(),
+  totalCharge: optionalNumber(z.coerce.number().min(0).optional()),
+  tanks: z.array(tankEntrySchema).min(1, "Add at least one item"),
   scheduledDate: z.coerce.date(),
   scheduledTime: timeSchema,
   specialInstructions: z.string().trim().optional(),

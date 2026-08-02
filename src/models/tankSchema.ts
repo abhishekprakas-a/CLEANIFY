@@ -1,22 +1,28 @@
 import { Schema } from "mongoose";
-import { allTankTypes } from "@/constants";
 
-/** One tank within a job/booking (a property can have several). */
+/**
+ * One line item within a job/booking. Generic across service types: `tankType`
+ * holds the item variant (tank type / surface / vehicle type …) and
+ * `capacityLitres` holds the numeric measure (litres / sq ft / panels …).
+ */
 export interface TankEntryDocument {
   name?: string;
   tankType: string;
-  capacityLitres: number;
+  capacityLitres?: number;
   quantity?: number;
   cleaningCharge?: number;
+  /** Work risk rating, 1 (low) – 10 (high). */
+  risk?: number;
 }
 
 export const tankEntrySchema = new Schema<TankEntryDocument>(
   {
     name: { type: String, trim: true },
-    tankType: { type: String, enum: allTankTypes, required: true },
-    capacityLitres: { type: Number, required: true, min: 1 },
+    tankType: { type: String, required: true },
+    capacityLitres: { type: Number, min: 1 },
     quantity: { type: Number, min: 1, default: 1 },
     cleaningCharge: { type: Number, min: 0 },
+    risk: { type: Number, min: 1, max: 10 },
   },
   { _id: false },
 );

@@ -15,6 +15,8 @@ export interface JobDocument {
   booking: mongoose.Types.ObjectId;
   customer: mongoose.Types.ObjectId;
   assignedTechnicians: mongoose.Types.ObjectId[];
+  serviceType: string;
+  workName?: string;
   tanks: TankEntryDocument[];
   totalCharge?: number;
   scheduledDate?: Date;
@@ -58,6 +60,8 @@ const jobSchema = new Schema<JobDocument>(
       type: [{ type: Schema.Types.ObjectId, ref: "User" }],
       default: [],
     },
+    serviceType: { type: String, default: "waterTank" },
+    workName: { type: String, trim: true },
     tanks: { type: [tankEntrySchema], default: [] },
     totalCharge: { type: Number, min: 0 },
     scheduledDate: { type: Date },

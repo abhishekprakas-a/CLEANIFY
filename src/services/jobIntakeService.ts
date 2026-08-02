@@ -2,7 +2,6 @@ import { dbConnect } from "@/lib/dbConnect";
 import { ApiError } from "@/lib/apiError";
 import { recordAudit } from "@/lib/audit";
 import { bookingStatus, userStatus } from "@/constants";
-import { totalChargeOf } from "@/models/tankSchema";
 import { bookingModel, customerModel } from "@/models";
 import { jobService } from "./jobService";
 import { schedulingService } from "./schedulingService";
@@ -75,13 +74,15 @@ export const jobIntakeService = {
       tankType: t.tankType,
       capacityLitres: t.capacityLitres,
       quantity: t.quantity ?? 1,
-      cleaningCharge: t.cleaningCharge,
+      risk: t.risk,
     }));
-    const totalCharge = totalChargeOf(tanks);
+    const totalCharge = input.totalCharge ?? 0;
 
     // 1. Booking (pending) — createFromBooking flips it to scheduled.
     const booking = await bookingModel.create({
       customerId,
+      serviceType: input.serviceType ?? "waterTank",
+      workName: input.workName || undefined,
       tanks,
       totalCharge,
       scheduledDate: input.scheduledDate,

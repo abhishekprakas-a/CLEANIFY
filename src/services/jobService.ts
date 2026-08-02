@@ -165,6 +165,8 @@ export const jobService = {
       jobCode,
       booking: booking._id,
       customer: booking.customerId,
+      serviceType: booking.serviceType,
+      workName: booking.workName,
       tanks: booking.tanks,
       totalCharge: booking.totalCharge,
       scheduledDate: input.scheduledDate,

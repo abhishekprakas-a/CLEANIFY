@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/hooks/useApi";
 import { useDebounce } from "@/hooks/useDebounce";
-import { allBookingStatuses, routes } from "@/constants";
+import { allBookingStatuses, routes, serviceLabel } from "@/constants";
 import type { Booking, PaginationMeta } from "@/types";
 
 /** The list endpoint populates customerId, so it arrives as an object. */
@@ -187,7 +187,7 @@ export function BookingTable() {
           <thead className="bg-slate-50 text-xs uppercase text-slate-400">
             <tr>
               <th className="px-4 py-3">Customer</th>
-              <th className="px-4 py-3">Tank</th>
+              <th className="px-4 py-3">Service</th>
               <th className="px-4 py-3">Qty</th>
               <th className="px-4 py-3">Scheduled</th>
               <th className="px-4 py-3">Status</th>
@@ -219,8 +219,13 @@ export function BookingTable() {
                   <td className="px-4 py-3 font-medium text-slate-800">
                     {customerName(b)}
                   </td>
-                  <td className="px-4 py-3 capitalize text-slate-600">
-                    {tankSummary(b)}
+                  <td className="px-4 py-3 text-slate-600">
+                    <span className="font-medium text-slate-700">
+                      {serviceLabel(b.serviceType)}
+                    </span>
+                    <span className="block text-xs capitalize text-slate-400">
+                      {tankSummary(b)}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{tankQty(b)}</td>
                   <td className="px-4 py-3 text-slate-600">

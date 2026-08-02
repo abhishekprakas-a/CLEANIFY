@@ -3,6 +3,7 @@ export * from "./permissions";
 export * from "./jobStatus";
 export * from "./scheduling";
 export * from "./booking";
+export * from "./service";
 export * from "./review";
 export * from "./attendance";
 export * from "./routes";

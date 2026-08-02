@@ -5,7 +5,6 @@ import { buildMeta } from "@/lib/pagination";
 import { escapeRegex } from "@/lib/sanitize";
 import { bookingStatus } from "@/constants";
 import { bookingModel, customerModel } from "@/models";
-import { totalChargeOf } from "@/models/tankSchema";
 import type {
   CancelBookingInput,
   CreateBookingInput,
@@ -87,7 +86,8 @@ export const bookingService = {
 
     const created = await bookingModel.create({
       ...input,
-      totalCharge: totalChargeOf(input.tanks),
+      serviceType: input.serviceType ?? "waterTank",
+      totalCharge: input.totalCharge ?? 0,
       scheduledTime: input.scheduledTime || undefined,
       bookingStatus: bookingStatus.pending,
       statusHistory: [statusEvent(bookingStatus.pending, user, "Created")],
@@ -108,7 +108,7 @@ export const bookingService = {
     }
 
     Object.assign(booking, input);
-    if (input.tanks) booking.totalCharge = totalChargeOf(input.tanks);
+    if (input.totalCharge != null) booking.totalCharge = input.totalCharge;
     if (input.scheduledTime === "") booking.scheduledTime = undefined;
     await booking.save();
     return toDto<Booking>(booking.toObject());
