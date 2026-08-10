@@ -85,8 +85,8 @@ export function InstallPrompt() {
   return (
     <div className="fixed inset-x-3 bottom-16 z-50 md:hidden">
       <div className="mx-auto flex max-w-md items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-lg">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-lg text-white">
-          💧
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-lg font-bold text-white">
+          C
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-slate-800">

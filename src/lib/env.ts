@@ -18,7 +18,7 @@ export const env = {
   nodeEnv: optional("NODE_ENV", "development"),
   isProd: process.env.NODE_ENV === "production",
 
-  appName: optional("NEXT_PUBLIC_APP_NAME", "Water Tank Cleaning Service"),
+  appName: optional("NEXT_PUBLIC_APP_NAME", "Cleanify"),
   appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
 
   mongodbUri: required("MONGODB_URI"),

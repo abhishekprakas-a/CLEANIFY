@@ -27,8 +27,7 @@ export function LandingNavbar({
           href="/"
           className="flex items-center gap-2 font-bold text-brand-700"
         >
-          <span className="text-2xl">💧</span>
-          <span>AquaClean</span>
+          <span className="text-xl tracking-tight">Cleanify</span>
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex">

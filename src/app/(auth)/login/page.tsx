@@ -16,9 +16,8 @@ export default function LoginPage() {
         <div className="mb-6 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-xl font-bold text-brand-700"
+            className="inline-flex items-center gap-2 text-2xl font-bold tracking-tight text-brand-700"
           >
-            <span className="text-2xl">💧</span>
             {env.appName}
           </Link>
           <p className="mt-1 text-sm text-slate-500">Sign in to continue</p>

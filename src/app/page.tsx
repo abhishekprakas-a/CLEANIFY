@@ -10,24 +10,34 @@ export const dynamic = "force-dynamic";
 
 const services = [
   {
-    icon: "🏢",
-    title: "Overhead tanks",
-    desc: "Rooftop and loft tanks scrubbed, disinfected and sediment-free.",
+    icon: "🚰",
+    title: "Water tank cleaning",
+    desc: "Overhead, underground & sump tanks — scrubbed, disinfected and sediment-free.",
   },
   {
-    icon: "🛢️",
-    title: "Underground sumps",
-    desc: "Deep cleaning of underground sumps with safe confined-space handling.",
+    icon: "🚽",
+    title: "Bathroom cleaning",
+    desc: "Deep cleaning and sanitizing of bathrooms and washrooms.",
   },
   {
-    icon: "🏬",
-    title: "Commercial complexes",
-    desc: "Apartments, offices and hospitals — scheduled, large-capacity cleaning.",
+    icon: "🧱",
+    title: "Interlock cleaning",
+    desc: "Driveways, parking areas and walkways pressure-cleaned and restored.",
   },
   {
-    icon: "🧪",
-    title: "Disinfection & testing",
-    desc: "Food-grade sanitization and water quality checks after every clean.",
+    icon: "☀️",
+    title: "Solar panel cleaning",
+    desc: "Rooftop and ground-mounted panels cleaned for maximum output.",
+  },
+  {
+    icon: "💦",
+    title: "Pressure washing",
+    desc: "Walls, floors, facades and exteriors blasted spotless.",
+  },
+  {
+    icon: "🚗",
+    title: "Car wash",
+    desc: "Doorstep washing for cars, bikes and larger vehicles.",
   },
 ];
 
@@ -58,7 +68,7 @@ const steps = [
   {
     n: "1",
     title: "Book online",
-    desc: "Pick a tank type, date and time in seconds.",
+    desc: "Pick a service, date and time in seconds.",
   },
   {
     n: "2",
@@ -135,11 +145,12 @@ const testimonials = [
   },
 ];
 
+// "Our work" gallery — real photos of the cleaning subjects only (no people).
 const gallery = [
-  "https://picsum.photos/seed/aqua1/600/400",
-  "https://picsum.photos/seed/aqua2/600/400",
-  "https://picsum.photos/seed/aqua3/600/400",
-  "https://picsum.photos/seed/aqua4/600/400",
+  { src: "/gallery/water-tank.jpg", alt: "Water tank cleaning" },
+  { src: "/gallery/interlock.jpg", alt: "Interlock paving cleaning" },
+  { src: "/gallery/bathroom.jpg", alt: "Bathroom cleaning" },
+  { src: "/gallery/solar-panel.jpg", alt: "Solar panel cleaning" },
 ];
 
 export default async function LandingPage() {
@@ -156,15 +167,15 @@ export default async function LandingPage() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2 lg:py-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-700">
-              💧 Trusted by 1,200+ homes & businesses
+              Trusted by 1,200+ homes & businesses
             </span>
             <h1 className="mt-4 text-4xl font-extrabold leading-tight text-slate-900 sm:text-5xl">
-              Clean water tanks,{" "}
+              Professional cleaning,{" "}
               <span className="text-brand-600">guaranteed spotless.</span>
             </h1>
             <p className="mt-4 max-w-md text-lg text-slate-600">
-              Professional water tank cleaning and disinfection — booked online,
-              done by certified technicians, with before & after photo proof.
+              Water tanks, bathrooms, interlock and more — booked online, done by
+              certified technicians, with before & after photo proof.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <a href="#pricing">
@@ -188,7 +199,7 @@ export default async function LandingPage() {
             <HeroArt />
             <div className="absolute -bottom-4 -left-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-lg">
               <p className="text-2xl font-bold text-brand-600">5,000+</p>
-              <p className="text-xs text-slate-500">tanks cleaned</p>
+              <p className="text-xs text-slate-500">jobs done</p>
             </div>
           </div>
         </div>
@@ -198,7 +209,7 @@ export default async function LandingPage() {
       <section className="border-y border-slate-100 bg-white">
         <div className="mx-auto grid max-w-6xl grid-cols-2 gap-6 px-4 py-8 text-center sm:grid-cols-4">
           {[
-            ["5,000+", "Tanks cleaned"],
+            ["5,000+", "Jobs completed"],
             ["1,200+", "Happy customers"],
             ["4.8★", "Average rating"],
             ["50+", "Technicians"],
@@ -215,9 +226,9 @@ export default async function LandingPage() {
       <Section
         id="services"
         title="What we do"
-        subtitle="End-to-end cleaning for every kind of tank."
+        subtitle="Professional cleaning for homes, businesses and everything in between."
       >
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((s) => (
             <div
               key={s.title}
@@ -234,7 +245,7 @@ export default async function LandingPage() {
       {/* Why us */}
       <section id="why" className="bg-slate-50">
         <Section
-          title="Why choose AquaClean"
+          title="Why choose Cleanify"
           subtitle="The details that make us different."
         >
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -319,18 +330,18 @@ export default async function LandingPage() {
         </Section>
       </section>
 
-      {/* Gallery */}
+      {/* Gallery — real photos of the work (cleaning subjects only, no people) */}
       <Section title="Our work" subtitle="Spotless results, every time.">
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {gallery.map((src, i) => (
+          {gallery.map((g) => (
             <div
-              key={i}
-              className="aspect-[3/2] overflow-hidden rounded-2xl bg-brand-100"
+              key={g.src}
+              className="aspect-[3/2] overflow-hidden rounded-2xl border border-slate-100 bg-brand-50"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={src}
-                alt="Tank cleaning work"
+                src={g.src}
+                alt={g.alt}
                 className="h-full w-full object-cover transition hover:scale-105"
               />
             </div>
@@ -394,11 +405,12 @@ export default async function LandingPage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
           <div>
-            <div className="flex items-center gap-2 font-bold text-brand-700">
-              <span className="text-2xl">💧</span> AquaClean
+            <div className="flex items-center gap-2 text-xl font-bold text-brand-700">
+              Cleanify
             </div>
             <p className="mt-2 text-sm text-slate-500">
-              Professional water tank cleaning & disinfection you can trust.
+              Professional cleaning services you can trust — water tanks,
+              bathrooms, interlock and more.
             </p>
           </div>
           <div className="text-sm">
@@ -424,8 +436,8 @@ export default async function LandingPage() {
           <div className="text-sm">
             <p className="font-semibold text-slate-700">Contact</p>
             <ul className="mt-2 space-y-1 text-slate-500">
-              <li>📞 1800-123-456</li>
-              <li>✉️ hello@aquaclean.example</li>
+              <li>📞 8848483892</li>
+              <li>✉️ hello@cleanify.example</li>
               <li>
                 <Link
                   href="/login"
@@ -438,7 +450,7 @@ export default async function LandingPage() {
           </div>
         </div>
         <div className="border-t border-slate-100 py-4 text-center text-xs text-slate-400">
-          © {new Date().getFullYear()} AquaClean. Demo landing page.
+          © {new Date().getFullYear()} Cleanify. All rights reserved.
         </div>
       </footer>
     </div>
@@ -534,3 +546,4 @@ function HeroArt() {
     </svg>
   );
 }
+

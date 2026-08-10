@@ -3,9 +3,9 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/technician",
-    name: "Water Tank Cleaning Service",
-    short_name: "WTC Field",
-    description: "Field technician app for water tank cleaning jobs",
+    name: "Cleanify",
+    short_name: "Cleanify",
+    description: "Cleanify field technician app — cleaning jobs & attendance",
     start_url: "/technician",
     scope: "/",
     display: "standalone",
