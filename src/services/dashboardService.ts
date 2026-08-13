@@ -1,6 +1,6 @@
 import { dbConnect } from "@/lib/dbConnect";
-import { jobStatus, terminalJobStatuses } from "@/constants";
-import { customerModel, jobModel, reviewModel } from "@/models";
+import { jobStatus, terminalJobStatuses, userStatus } from "@/constants";
+import { customerModel, jobModel, reviewModel, userModel } from "@/models";
 import { attendanceService } from "./attendanceService";
 import type {
   AdminDashboard,
@@ -23,11 +23,6 @@ function dateKey(d: Date): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
-
-const approvalStatuses = [
-  jobStatus.beforePhotoPendingApproval,
-  jobStatus.afterPhotoPendingApproval,
-];
 
 function mapScheduled(doc: Record<string, unknown>): ScheduledJob {
   const customer = doc.customer as
@@ -85,7 +80,8 @@ export const dashboardService = {
       }),
       jobModel.countDocuments({ status: { $nin: terminalJobStatuses } }),
       jobModel.countDocuments({ status: jobStatus.completed }),
-      jobModel.countDocuments({ status: { $in: approvalStatuses } }),
+      // "Pending approvals" now means accounts awaiting admin verification.
+      userModel.countDocuments({ status: userStatus.pending }),
       customerModel.countDocuments(),
       reviewModel.aggregate([
         { $group: { _id: null, avg: { $avg: "$starRating" } } },

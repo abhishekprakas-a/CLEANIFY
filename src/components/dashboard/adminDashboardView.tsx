@@ -9,8 +9,28 @@ import {
 } from "@/components/dashboard/dashboardCharts";
 import type { AdminDashboard } from "@/types";
 
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/**
+ * Locale- and timezone-independent date format (UTC), so the server- and
+ * client-rendered strings match — avoids a React hydration mismatch.
+ */
 function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString();
+  const d = new Date(iso);
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
 export function AdminDashboardView({ data }: { data: AdminDashboard }) {

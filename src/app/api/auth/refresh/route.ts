@@ -8,10 +8,15 @@ import {
   clearAuthCookies,
 } from "@/lib/cookies";
 import { getRequestContext } from "@/lib/authGuard";
+import { enforceRateLimit } from "@/lib/rateLimit";
 import { authService } from "@/services";
 
 export async function POST() {
   return handleRoute(async () => {
+    const ctx = getRequestContext();
+    // Generous per-IP cap — legit clients refresh on token expiry only.
+    enforceRateLimit(`refresh:${ctx.ip ?? "?"}`, 120, 60_000);
+
     const refreshToken = getRefreshCookie();
     if (!refreshToken) {
       clearAuthCookies();
@@ -19,7 +24,6 @@ export async function POST() {
     }
 
     try {
-      const ctx = getRequestContext();
       const result = await authService.refresh(refreshToken, ctx);
       setAccessCookie(result.accessToken, result.rememberDays);
       setRefreshCookie(result.refreshToken, result.rememberDays);

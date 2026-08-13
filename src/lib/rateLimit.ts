@@ -11,6 +11,22 @@ interface Bucket {
 
 const store = new Map<string, Bucket>();
 
+/**
+ * Periodically drop expired buckets so the map can't grow without bound as new
+ * keys (IP+email combinations) arrive — otherwise it leaks memory for the life
+ * of the process. Runs at most once per interval, on demand (no timer to leak).
+ */
+const SWEEP_INTERVAL_MS = 60_000;
+let lastSweepAt = 0;
+
+function sweepExpired(now: number): void {
+  if (now - lastSweepAt < SWEEP_INTERVAL_MS) return;
+  lastSweepAt = now;
+  for (const [key, bucket] of store) {
+    if (bucket.resetAt <= now) store.delete(key);
+  }
+}
+
 export interface RateLimitResult {
   ok: boolean;
   remaining: number;
@@ -23,6 +39,7 @@ export function rateLimit(
   windowMs: number,
 ): RateLimitResult {
   const now = Date.now();
+  sweepExpired(now);
   const bucket = store.get(key);
 
   if (!bucket || bucket.resetAt <= now) {

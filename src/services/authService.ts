@@ -13,6 +13,7 @@ import { sessionService, type SessionContext } from "./sessionService";
 import { roleService } from "./roleService";
 import type {
   LoginInput,
+  SignupInput,
   CreateUserInput,
   UpdateUserInput,
 } from "@/schemas/authSchema";
@@ -48,12 +49,23 @@ export const authService = {
       .findOne({ email: input.email.toLowerCase() })
       .select("+passwordHash");
 
-    if (!user || user.status !== userStatus.active) {
-      throw ApiError.unauthenticated("Invalid email or password");
-    }
+    if (!user) throw ApiError.unauthenticated("Invalid email or password");
 
     const valid = await verifyPassword(input.password, user.passwordHash);
     if (!valid) throw ApiError.unauthenticated("Invalid email or password");
+
+    // Only reveal account state once the password is proven correct, so this
+    // can't be used to probe which emails exist.
+    if (user.status !== userStatus.active) {
+      if (user.status === userStatus.pending) {
+        throw ApiError.forbidden(
+          "Your account is awaiting admin approval. You'll be able to sign in once it's verified.",
+        );
+      }
+      throw ApiError.forbidden(
+        "Your account has been deactivated. Please contact an admin.",
+      );
+    }
 
     user.lastLoginAt = new Date();
     await user.save();
@@ -185,6 +197,52 @@ export const authService = {
     await sessionService.revokeAllForUser(String(user._id));
   },
 
+  /**
+   * Public self-registration. Creates a technician account with status
+   * `pending`; it cannot log in until an admin verifies it. Returns nothing —
+   * no session is opened.
+   */
+  async signup(input: SignupInput): Promise<void> {
+    await dbConnect();
+
+    const existing = await userModel.findOne({
+      $or: [{ email: input.email.toLowerCase() }, { phone: input.phone }],
+    });
+    if (existing) {
+      throw ApiError.conflict(
+        "An account with this email or phone already exists",
+      );
+    }
+
+    const passwordHash = await hashPassword(input.password);
+    const created = await userModel.create({
+      name: input.name,
+      email: input.email.toLowerCase(),
+      phone: input.phone,
+      passwordHash,
+      role: roles.technician,
+      status: userStatus.pending,
+    });
+
+    await recordAudit({
+      actor: String(created._id),
+      actorName: created.name,
+      action: "auth.signup",
+      entityType: "user",
+      entityId: String(created._id),
+    });
+  },
+
+  /** Accounts awaiting admin verification (newest first). */
+  async listPendingUsers(): Promise<User[]> {
+    await dbConnect();
+    const docs = await userModel
+      .find({ status: userStatus.pending })
+      .sort({ createdAt: -1 })
+      .lean();
+    return docs.map((d) => toDto<User>(d));
+  },
+
   /** Create a staff user (admin or technician). Admin-only at the route layer. */
   async createUser(input: CreateUserInput): Promise<User> {
     await dbConnect();
@@ -205,7 +263,11 @@ export const authService = {
       role: input.role ?? roles.technician,
     });
 
-    return toDto<User>(created.toObject());
+    // Re-read with the default projection so the password hash (select:false)
+    // is never serialized back to the client.
+    const safe = await userModel.findById(created._id).lean();
+    if (!safe) throw ApiError.notFound("User not found");
+    return toDto<User>(safe);
   },
 
   /** Update a staff user (name/phone/role/status, optional password). */

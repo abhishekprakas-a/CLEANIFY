@@ -80,6 +80,16 @@ export function LoginForm() {
       <Button type="submit" size="lg" disabled={isSubmitting}>
         {isSubmitting ? "Signing in…" : "Sign in"}
       </Button>
+
+      <p className="text-center text-sm text-slate-500">
+        New here?{" "}
+        <Link
+          href={routes.signup}
+          className="font-medium text-brand-600 hover:text-brand-700"
+        >
+          Create an account
+        </Link>
+      </p>
     </form>
   );
 }

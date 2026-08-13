@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f2a30"/>
+  <text x="256" y="292" text-anchor="middle" textLength="360" lengthAdjust="spacingAndGlyphs" font-family="'Nunito','Baloo 2','Segoe UI',system-ui,sans-serif" font-size="96" font-weight="800" letter-spacing="-3" fill="#eaf7f4">cleanify</text>
+  <path d="M150 330 Q 256 306 362 326" fill="none" stroke="#46d6c9" stroke-width="13" stroke-linecap="round"/>
+</svg>

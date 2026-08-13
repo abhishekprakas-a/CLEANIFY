@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <rect width="48" height="48" rx="11" fill="#0f2a30"/>
+  <text x="24" y="34" text-anchor="middle" font-family="'Nunito','Baloo 2','Segoe UI',system-ui,sans-serif" font-size="31" font-weight="800" fill="#eaf7f4">c</text>
+  <path d="M13 39 Q 24 33 35 38" fill="none" stroke="#46d6c9" stroke-width="3.4" stroke-linecap="round"/>
+</svg>

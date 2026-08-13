@@ -1,0 +1,758 @@
+<title>Cleanify — Product & Technical Overview</title>
+
+<style>
+  :root {
+    --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+    --paper: #F3F6F5;
+    --surface: #FFFFFF;
+    --surface-2: #ECF2F1;
+    --ink: #0E1C1B;
+    --muted: #4C6360;
+    --faint: #798E8B;
+    --line: #DBE6E3;
+    --accent: #0C8079;
+    --accent-deep: #0A5D58;
+    --accent-soft: #DDEEEC;
+    --ok: #1F8A54;
+    --ok-soft: #DCF0E4;
+    --warn: #A96A0C;
+    --warn-soft: #F6E9D2;
+    --info: #245FA6;
+    --info-soft: #DEE9F6;
+    --danger: #B0433A;
+    --danger-soft: #F4DED9;
+    --shadow: 0 1px 2px rgba(14,28,27,.05), 0 6px 20px -12px rgba(14,28,27,.18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #0A1413;
+      --surface: #10201E;
+      --surface-2: #16302C;
+      --ink: #E9F1EF;
+      --muted: #9DB4B0;
+      --faint: #6E8582;
+      --line: #203632;
+      --accent: #2FB9AF;
+      --accent-deep: #86DBD3;
+      --accent-soft: #12312E;
+      --ok: #43BE7E;
+      --ok-soft: #12312A;
+      --warn: #DDA24B;
+      --warn-soft: #33280F;
+      --info: #6AA6E6;
+      --info-soft: #142639;
+      --danger: #E0796E;
+      --danger-soft: #351C19;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --paper: #F3F6F5; --surface: #FFFFFF; --surface-2: #ECF2F1; --ink: #0E1C1B;
+    --muted: #4C6360; --faint: #798E8B; --line: #DBE6E3; --accent: #0C8079;
+    --accent-deep: #0A5D58; --accent-soft: #DDEEEC; --ok: #1F8A54; --ok-soft: #DCF0E4;
+    --warn: #A96A0C; --warn-soft: #F6E9D2; --info: #245FA6; --info-soft: #DEE9F6;
+    --danger: #B0433A; --danger-soft: #F4DED9;
+    --shadow: 0 1px 2px rgba(14,28,27,.05), 0 6px 20px -12px rgba(14,28,27,.18);
+  }
+  :root[data-theme="dark"] {
+    --paper: #0A1413; --surface: #10201E; --surface-2: #16302C; --ink: #E9F1EF;
+    --muted: #9DB4B0; --faint: #6E8582; --line: #203632; --accent: #2FB9AF;
+    --accent-deep: #86DBD3; --accent-soft: #12312E; --ok: #43BE7E; --ok-soft: #12312A;
+    --warn: #DDA24B; --warn-soft: #33280F; --info: #6AA6E6; --info-soft: #142639;
+    --danger: #E0796E; --danger-soft: #351C19;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 26px -14px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  .page { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- Eyebrows / labels ---- */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    font-weight: 600;
+  }
+
+  /* ---- Hero ---- */
+  .hero {
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(120% 140% at 88% -10%, var(--accent-soft) 0%, transparent 55%);
+  }
+  .hero-inner { padding: 64px 0 44px; }
+  .brand {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--font-mono); font-size: 13px; letter-spacing: .04em;
+    color: var(--muted);
+  }
+  .brand .dot {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: linear-gradient(150deg, var(--accent), var(--accent-deep));
+    color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 14px;
+    font-family: var(--font-sans);
+  }
+  h1 {
+    font-size: clamp(2.1rem, 5.2vw, 3.5rem);
+    line-height: 1.04;
+    letter-spacing: -.02em;
+    margin: 18px 0 0;
+    text-wrap: balance;
+    font-weight: 800;
+  }
+  h1 .tint { color: var(--accent-deep); }
+  .lede {
+    font-size: clamp(1.05rem, 2vw, 1.28rem);
+    color: var(--muted);
+    max-width: 60ch;
+    margin: 18px 0 0;
+    line-height: 1.55;
+  }
+  .meta-row {
+    display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 24px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+  }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface);
+    padding: 5px 11px; border-radius: 999px;
+  }
+  .chip b { color: var(--ink); font-weight: 700; }
+
+  /* ---- Stat band ---- */
+  .stats {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+    background: var(--surface); box-shadow: var(--shadow); margin-top: 34px;
+  }
+  .stat { padding: 18px 16px; border-right: 1px solid var(--line); }
+  .stat:last-child { border-right: none; }
+  .stat .n {
+    font-size: 1.7rem; font-weight: 800; letter-spacing: -.02em; color: var(--accent-deep);
+    font-variant-numeric: tabular-nums;
+  }
+  .stat .k { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--faint); margin-top: 3px; }
+  @media (max-width: 860px) { .stats { grid-template-columns: repeat(3, 1fr); }
+    .stat:nth-child(3) { border-right: none; }
+    .stat:nth-child(1), .stat:nth-child(2), .stat:nth-child(3) { border-bottom: 1px solid var(--line); } }
+  @media (max-width: 460px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ---- Layout with sidebar ---- */
+  .shell {
+    display: grid; grid-template-columns: 232px minmax(0, 1fr);
+    gap: 56px; padding: 56px 0 80px; align-items: start;
+  }
+  nav.toc { position: sticky; top: 22px; }
+  nav.toc .toc-h {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--faint); padding: 0 0 10px; border-bottom: 1px solid var(--line);
+  }
+  nav.toc ol { list-style: none; margin: 12px 0 0; padding: 0; counter-reset: t; }
+  nav.toc li { margin: 1px 0; }
+  nav.toc a {
+    display: flex; gap: 10px; align-items: baseline;
+    text-decoration: none; color: var(--muted); font-size: 13.5px;
+    padding: 5px 10px; border-radius: 8px; line-height: 1.3;
+  }
+  nav.toc a:hover { background: var(--surface-2); color: var(--ink); }
+  nav.toc a::before {
+    counter-increment: t; content: counter(t, decimal-leading-zero);
+    font-family: var(--font-mono); font-size: 11px; color: var(--accent);
+  }
+  @media (max-width: 900px) { .shell { grid-template-columns: 1fr; gap: 0; padding-top: 40px; }
+    nav.toc { display: none; } }
+
+  main { min-width: 0; }
+  section { scroll-margin-top: 20px; padding-bottom: 46px; }
+  section + section { border-top: 1px solid var(--line); padding-top: 44px; }
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -.015em; line-height: 1.12;
+    margin: 10px 0 0; text-wrap: balance; font-weight: 800;
+  }
+  h3 { font-size: 1.12rem; margin: 30px 0 8px; letter-spacing: -.01em; font-weight: 700; }
+  p { margin: 14px 0; max-width: 68ch; }
+  .prose { color: var(--ink); }
+  .prose strong { font-weight: 700; }
+  a.ln { color: var(--accent-deep); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
+  a.ln:hover { border-color: var(--accent); }
+
+  /* ---- Cards / grids ---- */
+  .grid { display: grid; gap: 14px; margin: 22px 0; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 720px) { .g2, .g3 { grid-template-columns: 1fr; } }
+  .card {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 12px;
+    padding: 18px 18px 16px; box-shadow: var(--shadow);
+  }
+  .card h4 { margin: 0 0 6px; font-size: 1rem; display: flex; align-items: center; gap: 9px; font-weight: 700; }
+  .card p { margin: 0; font-size: 14px; color: var(--muted); max-width: none; }
+  .card .tag { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent-deep); background: var(--accent-soft);
+    padding: 3px 7px; border-radius: 5px; }
+
+  ul.clean { margin: 14px 0; padding: 0; list-style: none; }
+  ul.clean li { position: relative; padding: 4px 0 4px 22px; max-width: 68ch; }
+  ul.clean li::before {
+    content: ""; position: absolute; left: 3px; top: 12px; width: 7px; height: 7px;
+    border-radius: 2px; background: var(--accent); transform: rotate(45deg);
+  }
+
+  /* ---- Pills ---- */
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono);
+    font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; letter-spacing: .02em; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.info { background: var(--info-soft); color: var(--info); }
+  .pill.acc { background: var(--accent-soft); color: var(--accent-deep); }
+  .pill.mut { background: var(--surface-2); color: var(--muted); }
+
+  /* ---- Tables ---- */
+  .twrap { overflow-x: auto; margin: 22px 0; border: 1px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 460px; }
+  th, td { text-align: left; padding: 11px 15px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint); background: var(--surface-2); font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--surface-2); }
+  td.mono, .mono { font-family: var(--font-mono); font-size: 12.5px; }
+  td b { font-weight: 700; }
+
+  /* ---- Diagram frames ---- */
+  figure { margin: 24px 0; }
+  .diagram {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 14px;
+    padding: 22px; box-shadow: var(--shadow); overflow-x: auto;
+  }
+  figcaption { font-family: var(--font-mono); font-size: 11.5px; color: var(--faint);
+    margin-top: 10px; letter-spacing: .04em; }
+  svg { display: block; }
+  .svg-min { min-width: 640px; }
+
+  /* callout */
+  .callout {
+    border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    background: var(--surface); border-radius: 10px; padding: 15px 18px; margin: 22px 0;
+    box-shadow: var(--shadow);
+  }
+  .callout .eyebrow { color: var(--accent-deep); }
+  .callout p { margin: 6px 0 0; font-size: 14.5px; color: var(--muted); }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 30px 0 50px; color: var(--faint);
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  footer .page { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+</style>
+
+<header class="hero">
+  <div class="page hero-inner">
+    <div class="brand"><span class="dot">C</span> CLEANIFY · PRODUCT &amp; TECHNICAL OVERVIEW</div>
+    <h1>The operations backbone for a <span class="tint">multi-service cleaning business</span>.</h1>
+    <p class="lede">Cleanify runs the whole job lifecycle end to end — from a customer booking to a technician
+      on site with before/after proof to a rated, reportable completion. One admin console on the web, one
+      installable app in the field.</p>
+    <div class="meta-row">
+      <span class="chip">Sector — <b>Field service · cleaning</b></span>
+      <span class="chip">Market — <b>Kerala, India</b></span>
+      <span class="chip">Delivery — <b>Web console + technician PWA</b></span>
+      <span class="chip">Status — <b>Production-ready</b></span>
+    </div>
+
+    <div class="stats" role="list" aria-label="Platform at a glance">
+      <div class="stat" role="listitem"><div class="n">6</div><div class="k">Service lines</div></div>
+      <div class="stat" role="listitem"><div class="n">2</div><div class="k">User roles</div></div>
+      <div class="stat" role="listitem"><div class="n">12</div><div class="k">Admin modules</div></div>
+      <div class="stat" role="listitem"><div class="n">13</div><div class="k">Data models</div></div>
+      <div class="stat" role="listitem"><div class="n">50+</div><div class="k">API endpoints</div></div>
+      <div class="stat" role="listitem"><div class="n">100%</div><div class="k">TypeScript</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <div class="shell">
+    <nav class="toc" aria-label="Contents">
+      <div class="toc-h">On this page</div>
+      <ol>
+        <li><a href="#summary">What Cleanify is</a></li>
+        <li><a href="#roles">Who uses it</a></li>
+        <li><a href="#services">Services it handles</a></li>
+        <li><a href="#workflow">The job lifecycle</a></li>
+        <li><a href="#field">In the field</a></li>
+        <li><a href="#onboarding">Onboarding &amp; verification</a></li>
+        <li><a href="#modules">Admin console</a></li>
+        <li><a href="#reporting">Reporting &amp; analytics</a></li>
+        <li><a href="#architecture">How it's built</a></li>
+        <li><a href="#data">Data model</a></li>
+        <li><a href="#security">Security &amp; reliability</a></li>
+        <li><a href="#ops">Deployment</a></li>
+        <li><a href="#pitch">Why it sells</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <!-- 1 -->
+      <section id="summary">
+        <div class="eyebrow">01 — Overview</div>
+        <h2>What Cleanify is</h2>
+        <p class="prose">Cleanify is a management system for a service-based cleaning company — the kind that
+          sends crews out to clean water tanks, bathrooms, interlocked driveways, solar panels and vehicles.
+          It replaces the usual mix of phone notebooks, WhatsApp photos and spreadsheets with a single
+          system of record that connects the <strong>office</strong> and the <strong>field</strong>.</p>
+        <p class="prose">The office side is a web console where staff take bookings, schedule and assign
+          crews, and watch performance. The field side is an installable phone app that gives each technician
+          their day's jobs, turn-by-turn context, and a guided checklist that captures photographic proof of
+          the work. Everything a technician does flows straight back to the office in real time.</p>
+        <div class="grid g3">
+          <div class="card"><h4><span class="tag">Office</span></h4><p>Bookings, scheduling, crew assignment,
+            customer records, reviews, attendance and reporting — all in one dashboard.</p></div>
+          <div class="card"><h4><span class="tag">Field</span></h4><p>A phone-installable app with each
+            technician's jobs, a step-by-step work flow, and before/after photo capture.</p></div>
+          <div class="card"><h4><span class="tag">Proof</span></h4><p>Every job carries timestamped
+            before/after photos, a full status history, and a customer rating — auditable end to end.</p></div>
+        </div>
+      </section>
+
+      <!-- 2 -->
+      <section id="roles">
+        <div class="eyebrow">02 — People</div>
+        <h2>Who uses it</h2>
+        <p class="prose">Access is role-based. Every screen and every API call is gated by the signed-in
+          user's role, enforced both at the network edge and again in the server, so the two audiences only
+          ever see what belongs to them.</p>
+        <div class="grid g2">
+          <div class="card">
+            <h4>Admin / office staff <span class="pill acc">full console</span></h4>
+            <p>Runs the business: manages customers and bookings, schedules and assigns crews, verifies new
+              technician accounts, reviews job photos, tracks attendance, and reads the reports. Calling staff
+              who take bookings sit in this role.</p>
+          </div>
+          <div class="card">
+            <h4>Technician <span class="pill ok">field app</span></h4>
+            <p>Sees only their assigned jobs. Checks in for the day, travels to site, captures before photos,
+              does the work, captures after photos, and completes the job — all from their phone, even on a
+              shaky connection.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 -->
+      <section id="services">
+        <div class="eyebrow">03 — Catalogue</div>
+        <h2>Services it handles</h2>
+        <p class="prose">Cleanify started with water tanks and generalised. The booking form is
+          <strong>service-adaptive</strong>: choosing a service reshapes the fields — labels, dropdown
+          options, the unit of measure — without any change to the underlying data model. Adding a new
+          service line is a configuration change, not an engineering project.</p>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Service</th><th>Line item</th><th>Captured per item</th></tr></thead>
+            <tbody>
+              <tr><td><b>Water tank cleaning</b></td><td>Tank (concrete / synthetic)</td><td class="mono">capacity (L) · risk 1–10 · count-driven</td></tr>
+              <tr><td><b>Washroom cleaning</b></td><td>Washroom (western / indian / urinal…)</td><td class="mono">count</td></tr>
+              <tr><td><b>Interlock cleaning</b></td><td>Area (driveway / parking / walkway)</td><td class="mono">area (sq ft)</td></tr>
+              <tr><td><b>Solar panel cleaning</b></td><td>Panel set (rooftop / ground / carport)</td><td class="mono">no. of panels</td></tr>
+              <tr><td><b>Pressure washing</b></td><td>Surface (wall / floor / facade / roof)</td><td class="mono">area (sq ft)</td></tr>
+              <tr><td><b>Car wash</b></td><td>Vehicle (hatchback / sedan / SUV / bike…)</td><td class="mono">no. of vehicles</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout">
+          <div class="eyebrow">Why this matters</div>
+          <p>A water-tank job can carry many tanks, each with its own capacity and a 1–10 risk rating for the
+            crew. The same generic "line item" model powers every other service — so the business can price and
+            plan any job type consistently, and expand the catalogue without a rebuild.</p>
+        </div>
+      </section>
+
+      <!-- 4 -->
+      <section id="workflow">
+        <div class="eyebrow">04 — Lifecycle</div>
+        <h2>The job lifecycle</h2>
+        <p class="prose">Every job moves through a controlled sequence of states. The system enforces the
+          allowed transitions and records who moved it, when, and why — so a job can never skip a step, and
+          its whole history is always reconstructable.</p>
+
+        <figure>
+          <div class="diagram">
+            <svg class="svg-min" viewBox="0 0 900 210" width="100%" height="auto" role="img"
+                 aria-label="Job lifecycle: booking to scheduled, assigned, reached site, cleaning in progress, completed, with a cancel branch.">
+              <defs>
+                <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0 0 L10 5 L0 10 z" fill="var(--faint)"/>
+                </marker>
+              </defs>
+              <!-- lane -->
+              <line x1="70" y1="70" x2="830" y2="70" stroke="var(--line)" stroke-width="2"/>
+              <!-- nodes -->
+              <g font-family="var(--font-sans)" font-size="12.5" font-weight="700" text-anchor="middle">
+                <!-- node template: circle + label -->
+                <g>
+                  <circle cx="70" cy="70" r="15" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+                  <text x="70" y="105" fill="var(--ink)">Booking</text>
+                  <text x="70" y="122" fill="var(--faint)" font-size="10" font-weight="500" font-family="var(--font-mono)">pending</text>
+                </g>
+                <g>
+                  <circle cx="222" cy="70" r="15" fill="var(--info-soft)" stroke="var(--info)" stroke-width="2"/>
+                  <text x="222" y="105" fill="var(--ink)">Scheduled</text>
+                  <text x="222" y="122" fill="var(--faint)" font-size="10" font-weight="500" font-family="var(--font-mono)">scheduled</text>
+                </g>
+                <g>
+                  <circle cx="374" cy="70" r="15" fill="var(--info-soft)" stroke="var(--info)" stroke-width="2"/>
+                  <text x="374" y="105" fill="var(--ink)">Assigned</text>
+                  <text x="374" y="122" fill="var(--faint)" font-size="10" font-weight="500" font-family="var(--font-mono)">assigned</text>
+                </g>
+                <g>
+                  <circle cx="526" cy="70" r="15" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="2"/>
+                  <text x="526" y="105" fill="var(--ink)">On site</text>
+                  <text x="526" y="122" fill="var(--faint)" font-size="10" font-weight="500" font-family="var(--font-mono)">reachedSite</text>
+                </g>
+                <g>
+                  <circle cx="678" cy="70" r="15" fill="var(--warn-soft)" stroke="var(--warn)" stroke-width="2"/>
+                  <text x="678" y="105" fill="var(--ink)">Cleaning</text>
+                  <text x="678" y="122" fill="var(--faint)" font-size="10" font-weight="500" font-family="var(--font-mono)">cleaningInProgress</text>
+                </g>
+                <g>
+                  <circle cx="830" cy="70" r="15" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="2.5"/>
+                  <text x="830" y="105" fill="var(--ink)">Completed</text>
+                  <text x="830" y="122" fill="var(--faint)" font-size="10" font-weight="500" font-family="var(--font-mono)">completed</text>
+                </g>
+              </g>
+              <!-- arrows over segments -->
+              <g stroke="var(--faint)" stroke-width="1.6" marker-end="url(#ah)">
+                <line x1="90" y1="70" x2="200" y2="70"/>
+                <line x1="242" y1="70" x2="352" y2="70"/>
+                <line x1="394" y1="70" x2="504" y2="70"/>
+                <line x1="546" y1="70" x2="656" y2="70"/>
+                <line x1="698" y1="70" x2="808" y2="70"/>
+              </g>
+              <!-- role tags on segments -->
+              <g font-family="var(--font-mono)" font-size="9.5" text-anchor="middle" fill="var(--accent-deep)">
+                <text x="146" y="55">office</text>
+                <text x="298" y="55">office</text>
+                <text x="450" y="55">technician</text>
+                <text x="602" y="55">+ before photos</text>
+                <text x="754" y="55">+ after photos</text>
+              </g>
+              <!-- cancel branch -->
+              <g>
+                <line x1="374" y1="90" x2="374" y2="165" stroke="var(--danger)" stroke-width="1.4"
+                      stroke-dasharray="4 4" marker-end="url(#ah)"/>
+                <rect x="326" y="168" width="96" height="26" rx="8" fill="var(--danger-soft)" stroke="var(--danger)" stroke-width="1.2"/>
+                <text x="374" y="185" text-anchor="middle" font-family="var(--font-mono)" font-size="10.5" fill="var(--danger)">cancelled</text>
+              </g>
+            </svg>
+          </div>
+          <figcaption>Job state machine — transitions are validated server-side; each step is stamped with actor, time and note.</figcaption>
+        </figure>
+
+        <div class="grid g3">
+          <div class="card"><h4><span class="pill mut">1</span> Booking → Job</h4><p>Office takes a booking
+            (or a one-step "job card" that creates the customer, booking and job together), sets service,
+            work name, line items and total.</p></div>
+          <div class="card"><h4><span class="pill info">2</span> Schedule &amp; assign</h4><p>The job is put on
+            a date/slot and assigned to <strong>one or several</strong> technicians, with a conflict check so
+            no one is double-booked.</p></div>
+          <div class="card"><h4><span class="pill ok">3</span> Execute &amp; complete</h4><p>The technician
+            reaches site, captures before photos, cleans, captures after photos, and completes — proof
+            attached, no back-and-forth.</p></div>
+        </div>
+      </section>
+
+      <!-- 5 -->
+      <section id="field">
+        <div class="eyebrow">05 — In the field</div>
+        <h2>What the technician does</h2>
+        <p class="prose">The field app is a guided checklist — it only ever shows the one action that's valid
+          right now, so there's nothing to get wrong. A technician can't start a job without checking in for
+          the day, can't start cleaning without a before photo, and can't complete without an after photo.</p>
+        <ul class="clean">
+          <li><strong>Check in</strong> for the day (attendance is recorded automatically).</li>
+          <li><strong>Open the job</strong> — customer, address with a one-tap Maps link, and the exact line
+            items to clean with their risk ratings.</li>
+          <li><strong>Before photos → Start cleaning.</strong> Photos upload straight to secure cloud storage;
+            the job advances the moment they're in.</li>
+          <li><strong>After photos → Complete job.</strong> The job closes with its proof attached — no waiting
+            on an approver.</li>
+          <li><strong>Manage photos</strong> — retake or delete a shot before finishing; oversized images are
+            compressed on the phone and capped at 5&nbsp;MB.</li>
+        </ul>
+        <div class="callout">
+          <div class="eyebrow">Design choice — speed over ceremony</div>
+          <p>The workflow was deliberately streamlined so crews aren't blocked waiting for an office
+            approval mid-job. Photos are still captured as mandatory proof and are reviewable by the office at
+            any time — the office keeps oversight without slowing the field down.</p>
+        </div>
+      </section>
+
+      <!-- 6 -->
+      <section id="onboarding">
+        <div class="eyebrow">06 — Access control</div>
+        <h2>Onboarding &amp; verification</h2>
+        <p class="prose">New technicians can self-register from a public sign-up page — but an account stays
+          <span class="pill warn">pending</span> and <strong>cannot sign in</strong> until an admin verifies
+          it. This keeps the workforce list clean and stops anyone unknown from reaching the system.</p>
+        <div class="grid g3">
+          <div class="card"><h4>1 · Sign up</h4><p>A prospective technician submits their details and a
+            password. The account is created as <span class="mono">pending</span>.</p></div>
+          <div class="card"><h4>2 · Verify</h4><p>An admin sees the request in <strong>Account approvals</strong>
+            and either approves it (activates sign-in) or rejects it (deactivates, reversibly).</p></div>
+          <div class="card"><h4>3 · Work</h4><p>Once approved, the technician signs in and starts receiving
+            assigned jobs. Self-signup is technician-only — admins are created internally.</p></div>
+        </div>
+      </section>
+
+      <!-- 7 -->
+      <section id="modules">
+        <div class="eyebrow">07 — The console</div>
+        <h2>What's in the admin console</h2>
+        <p class="prose">Twelve modules cover the full operation. Each is a focused screen backed by its own
+          API and permission checks.</p>
+        <div class="grid g3">
+          <div class="card"><h4>Dashboard</h4><p>KPIs, job-status mix, 7-day trend, rating distribution and
+            today's attendance at a glance.</p></div>
+          <div class="card"><h4>Customers</h4><p>Full customer records with service history and map location.</p></div>
+          <div class="card"><h4>Bookings</h4><p>Service-adaptive booking form, inline customer creation, edit
+            &amp; reschedule.</p></div>
+          <div class="card"><h4>Schedule</h4><p>Calendar of jobs by date and slot, with crew availability.</p></div>
+          <div class="card"><h4>Jobs</h4><p>Every job, its status, crew and timeline; one-step "job card"
+            intake.</p></div>
+          <div class="card"><h4>Job photos</h4><p>Read-only before/after gallery per job — the office's proof
+            view.</p></div>
+          <div class="card"><h4>Account approvals</h4><p>Verify or reject new technician sign-ups.</p></div>
+          <div class="card"><h4>Reviews</h4><p>Customer star-ratings and feedback tied to completed jobs.</p></div>
+          <div class="card"><h4>Attendance</h4><p>Daily check-in/out, present / late / half-day / absent.</p></div>
+          <div class="card"><h4>Reports</h4><p>Jobs, attendance, technician productivity and reviews —
+            exportable.</p></div>
+          <div class="card"><h4>Staff</h4><p>Create and manage admin &amp; technician accounts and status.</p></div>
+          <div class="card"><h4>Audit log</h4><p>An immutable trail of who did what, across the system.</p></div>
+        </div>
+      </section>
+
+      <!-- 8 -->
+      <section id="reporting">
+        <div class="eyebrow">08 — Insight</div>
+        <h2>Reporting &amp; analytics</h2>
+        <p class="prose">The dashboard turns raw activity into a scorecard, and the reports module exports the
+          detail for finance or ops. Charts are rendered live from the operational data — no separate BI tool
+          needed.</p>
+        <div class="grid g2">
+          <div class="card"><h4>Live dashboard</h4><p>Today's jobs, pending jobs, completions, pending account
+            approvals, customer count and average rating — plus trend and status charts.</p></div>
+          <div class="card"><h4>Exportable reports</h4><p>Jobs, attendance, technician productivity and reviews,
+            downloadable as <span class="mono">PDF</span> and <span class="mono">Excel</span> for sharing and
+            payroll.</p></div>
+        </div>
+      </section>
+
+      <!-- 9 -->
+      <section id="architecture">
+        <div class="eyebrow">09 — Engineering</div>
+        <h2>How it's built</h2>
+        <p class="prose">Cleanify is one modern TypeScript codebase that serves both the web console and the
+          field app. It's a <strong>Next.js 14</strong> application: the same project renders the UI, exposes
+          the API, and enforces auth at the edge. Business logic lives in a clean service layer between the API
+          routes and the database, so rules are enforced in exactly one place.</p>
+
+        <figure>
+          <div class="diagram">
+            <svg class="svg-min" viewBox="0 0 900 340" width="100%" height="auto" role="img"
+                 aria-label="Architecture: clients, Next.js application, domain services, and data/infrastructure layers.">
+              <g font-family="var(--font-sans)">
+                <!-- Layer 1: Clients -->
+                <rect x="30" y="20" width="840" height="66" rx="12" fill="var(--surface-2)" stroke="var(--line)"/>
+                <text x="46" y="42" font-family="var(--font-mono)" font-size="10.5" letter-spacing="1.5" fill="var(--faint)">CLIENTS</text>
+                <g>
+                  <rect x="210" y="34" width="290" height="40" rx="9" fill="var(--accent-soft)" stroke="var(--accent)"/>
+                  <text x="355" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">Admin console — web</text>
+                  <rect x="520" y="34" width="330" height="40" rx="9" fill="var(--accent-soft)" stroke="var(--accent)"/>
+                  <text x="685" y="59" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">Technician app — installable PWA</text>
+                </g>
+
+                <!-- Layer 2: Next.js app -->
+                <rect x="30" y="104" width="840" height="86" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+                <text x="46" y="126" font-family="var(--font-mono)" font-size="10.5" letter-spacing="1.5" fill="var(--faint)">NEXT.JS 14 APPLICATION</text>
+                <g font-size="12" font-weight="600" text-anchor="middle">
+                  <rect x="210" y="138" width="196" height="40" rx="9" fill="var(--info-soft)" stroke="var(--info)"/>
+                  <text x="308" y="163" fill="var(--ink)">App Router UI</text>
+                  <rect x="420" y="138" width="196" height="40" rx="9" fill="var(--info-soft)" stroke="var(--info)"/>
+                  <text x="518" y="163" fill="var(--ink)">REST API routes</text>
+                  <rect x="630" y="138" width="220" height="40" rx="9" fill="var(--info-soft)" stroke="var(--info)"/>
+                  <text x="740" y="163" fill="var(--ink)">Edge auth + role gate</text>
+                </g>
+
+                <!-- Layer 3: Services -->
+                <rect x="30" y="208" width="840" height="60" rx="12" fill="var(--surface)" stroke="var(--line)"/>
+                <text x="46" y="230" font-family="var(--font-mono)" font-size="10.5" letter-spacing="1.5" fill="var(--faint)">DOMAIN SERVICES</text>
+                <g font-size="11" font-weight="600" text-anchor="middle" fill="var(--accent-deep)">
+                  <rect x="210" y="228" width="92" height="30" rx="7" fill="var(--accent-soft)"/><text x="256" y="248">auth</text>
+                  <rect x="308" y="228" width="92" height="30" rx="7" fill="var(--accent-soft)"/><text x="354" y="248">jobs</text>
+                  <rect x="406" y="228" width="98" height="30" rx="7" fill="var(--accent-soft)"/><text x="455" y="248">bookings</text>
+                  <rect x="510" y="228" width="92" height="30" rx="7" fill="var(--accent-soft)"/><text x="556" y="248">photos</text>
+                  <rect x="608" y="228" width="110" height="30" rx="7" fill="var(--accent-soft)"/><text x="663" y="248">scheduling</text>
+                  <rect x="724" y="228" width="126" height="30" rx="7" fill="var(--accent-soft)"/><text x="787" y="248">reports · audit</text>
+                </g>
+
+                <!-- Layer 4: Infra -->
+                <rect x="30" y="286" width="840" height="42" rx="12" fill="var(--surface-2)" stroke="var(--line)"/>
+                <text x="46" y="311" font-family="var(--font-mono)" font-size="10.5" letter-spacing="1.5" fill="var(--faint)">DATA &amp; INFRASTRUCTURE</text>
+                <g font-size="11.5" font-weight="700" text-anchor="middle">
+                  <rect x="360" y="296" width="150" height="24" rx="7" fill="var(--ok-soft)" stroke="var(--ok)"/>
+                  <text x="435" y="312" fill="var(--ink)">MongoDB Atlas</text>
+                  <rect x="524" y="296" width="150" height="24" rx="7" fill="var(--warn-soft)" stroke="var(--warn)"/>
+                  <text x="599" y="312" fill="var(--ink)">AWS S3 (photos)</text>
+                  <rect x="688" y="296" width="162" height="24" rx="7" fill="var(--info-soft)" stroke="var(--info)"/>
+                  <text x="769" y="312" fill="var(--ink)">JWT sessions</text>
+                </g>
+
+                <!-- connectors -->
+                <g stroke="var(--faint)" stroke-width="1.4" opacity="0.7">
+                  <line x1="450" y1="86" x2="450" y2="104"/>
+                  <line x1="450" y1="190" x2="450" y2="208"/>
+                  <line x1="450" y1="268" x2="450" y2="286"/>
+                </g>
+              </g>
+            </svg>
+          </div>
+          <figcaption>Four layers, one codebase — clients, the Next.js app (UI + API + edge gate), the service layer, and managed data/infra.</figcaption>
+        </figure>
+
+        <h3>Technology stack</h3>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Layer</th><th>Technology</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td>Framework</td><td class="mono">Next.js 14 · React 18</td><td>UI + API in one app, standalone build</td></tr>
+              <tr><td>Language</td><td class="mono">TypeScript 5</td><td>End-to-end type safety</td></tr>
+              <tr><td>Database</td><td class="mono">MongoDB + Mongoose 8</td><td>System of record</td></tr>
+              <tr><td>File storage</td><td class="mono">AWS S3</td><td>Before/after photos via presigned direct upload</td></tr>
+              <tr><td>Auth</td><td class="mono">JWT (jose) + bcrypt</td><td>Access + rotating refresh tokens, hashed passwords</td></tr>
+              <tr><td>Validation</td><td class="mono">Zod + React Hook Form</td><td>One schema shared by client &amp; server</td></tr>
+              <tr><td>UI</td><td class="mono">Tailwind CSS · Recharts</td><td>Styling and live charts</td></tr>
+              <tr><td>Mobile</td><td class="mono">next-pwa · Web Push</td><td>Installable app, offline shell, notifications</td></tr>
+              <tr><td>Exports</td><td class="mono">jsPDF · SheetJS (xlsx)</td><td>PDF &amp; Excel reports</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 10 -->
+      <section id="data">
+        <div class="eyebrow">10 — Data</div>
+        <h2>The data model</h2>
+        <p class="prose">Thirteen models capture the domain. The design keeps a clean separation between a
+          <strong>booking</strong> (the commercial agreement) and the <strong>job</strong> (the field
+          execution), which is what lets one system track both the sales and the operational side.</p>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Model</th><th>What it holds</th></tr></thead>
+            <tbody>
+              <tr><td class="mono"><b>User</b></td><td>Admins &amp; technicians — role, status (active / pending / inactive), credentials</td></tr>
+              <tr><td class="mono"><b>Customer</b></td><td>Contact, address, map location, service history</td></tr>
+              <tr><td class="mono"><b>Booking</b></td><td>Service type, work name, line items, total charge, status</td></tr>
+              <tr><td class="mono"><b>Job</b></td><td>Execution record — schedule, assigned crew, status history, photos, notes</td></tr>
+              <tr><td class="mono"><b>JobAssignment</b></td><td>Which technicians are on which job</td></tr>
+              <tr><td class="mono"><b>Photo</b></td><td>Before/after image — S3 key, uploader, metadata (geo, size)</td></tr>
+              <tr><td class="mono"><b>Attendance</b></td><td>Daily check-in/out and day status per technician</td></tr>
+              <tr><td class="mono"><b>Review</b></td><td>Customer star-rating and feedback for a job</td></tr>
+              <tr><td class="mono"><b>Session</b></td><td>Refresh-token sessions for secure sign-in</td></tr>
+              <tr><td class="mono"><b>Role · Permission</b></td><td>Role-based access definitions</td></tr>
+              <tr><td class="mono"><b>AuditLog</b></td><td>Immutable record of significant actions</td></tr>
+              <tr><td class="mono"><b>PushSubscription</b></td><td>Device registrations for notifications</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 11 -->
+      <section id="security">
+        <div class="eyebrow">11 — Trust</div>
+        <h2>Security &amp; reliability</h2>
+        <div class="grid g2">
+          <div class="card"><h4>Layered access control</h4><p>Role checks run at the network edge
+            (middleware) <em>and</em> again in every server handler — defence in depth. Technicians can only
+            ever touch their own jobs.</p></div>
+          <div class="card"><h4>Hardened auth</h4><p>Passwords are bcrypt-hashed; sessions use short-lived
+            access tokens with rotating refresh tokens; login is rate-limited to slow brute-force attempts.</p></div>
+          <div class="card"><h4>Verified workforce</h4><p>No self-registered account can sign in until an admin
+            approves it — the workforce list is always vetted.</p></div>
+          <div class="card"><h4>Direct-to-cloud uploads</h4><p>Photos upload straight from the phone to S3 via
+            short-lived <span class="mono">presigned</span> URLs — the server never proxies the file, and the
+            keys stay server-side.</p></div>
+          <div class="card"><h4>Full audit trail</h4><p>Significant actions are written to an immutable audit
+            log; every job keeps a complete status history with actor and timestamp.</p></div>
+          <div class="card"><h4>Validated everywhere</h4><p>The same Zod schema validates input on the client
+            and re-validates it on the server, so bad data can't slip through.</p></div>
+        </div>
+      </section>
+
+      <!-- 12 -->
+      <section id="ops">
+        <div class="eyebrow">12 — Operations</div>
+        <h2>Deployment &amp; running it</h2>
+        <p class="prose">Cleanify is built to deploy as a standalone Next.js app on a modern hosting platform
+          (e.g. Vercel), backed by managed MongoDB Atlas and an AWS S3 bucket. Configuration is entirely by
+          environment variables — nothing sensitive is baked into the code.</p>
+        <div class="grid g3">
+          <div class="card"><h4>Hosting</h4><p>Standalone Next.js build; one deploy serves web console, API and
+            field app.</p></div>
+          <div class="card"><h4>Managed data</h4><p>MongoDB Atlas for the database, AWS S3 for photo storage —
+            both scale without ops overhead.</p></div>
+          <div class="card"><h4>Quality gates</h4><p>Strict TypeScript, linting and an end-to-end test harness
+            guard every change.</p></div>
+        </div>
+      </section>
+
+      <!-- 13 -->
+      <section id="pitch">
+        <div class="eyebrow">13 — The pitch</div>
+        <h2>Why it sells</h2>
+        <p class="prose">For a prospect, Cleanify is the difference between running a cleaning business on
+          memory and running it on a system. The talking points that land:</p>
+        <ul class="clean">
+          <li><strong>Proof on every job.</strong> Timestamped before/after photos protect the business in
+            disputes and reassure customers.</li>
+          <li><strong>The office always knows.</strong> Real-time status from the field means no chasing crews
+            for updates.</li>
+          <li><strong>One system, many services.</strong> Water tanks today, any cleaning service tomorrow —
+            without a rebuild.</li>
+          <li><strong>Field-ready.</strong> An installable app that works on a phone, on a weak connection, with
+            a guided flow crews can't get wrong.</li>
+          <li><strong>Accountable by design.</strong> Verified workforce, role-based access, and a full audit
+            trail — trust built in, not bolted on.</li>
+          <li><strong>Owns its data.</strong> Reviews, attendance and productivity reporting turn day-to-day
+            work into numbers the owner can act on.</li>
+        </ul>
+        <div class="callout">
+          <div class="eyebrow">In one line</div>
+          <p>Cleanify connects the office and the field for a multi-service cleaning company — bookings in,
+            crews out, proof and ratings back — on one modern, secure, extensible platform.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<footer>
+  <div class="page">
+    <span>CLEANIFY · PRODUCT &amp; TECHNICAL OVERVIEW</span>
+    <span>Prepared for B2B / partnership discussions · Internal reference</span>
+  </div>
+</footer>

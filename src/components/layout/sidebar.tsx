@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { routes } from "@/constants";
+import { Logo } from "@/components/brand/logo";
 
 const navItems = [
   { href: routes.admin.dashboard, label: "Dashboard" },
@@ -11,6 +12,7 @@ const navItems = [
   { href: routes.admin.bookings, label: "Bookings" },
   { href: routes.admin.schedule, label: "Schedule" },
   { href: routes.admin.jobs, label: "Jobs" },
+  { href: routes.admin.photos, label: "Job photos" },
   { href: routes.admin.approvals, label: "Approvals" },
   { href: routes.admin.reviews, label: "Reviews" },
   { href: routes.admin.attendance, label: "Attendance" },
@@ -23,8 +25,11 @@ export function Sidebar() {
   const pathname = usePathname();
   return (
     <aside className="hidden w-60 shrink-0 border-r border-slate-200 bg-white md:block">
-      <div className="px-5 py-4 text-lg font-bold text-brand-700">
-        WTC Admin
+      <div className="flex items-center gap-2 px-5 py-4">
+        <Logo className="h-6" />
+        <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-700">
+          Admin
+        </span>
       </div>
       <nav className="flex flex-col gap-1 px-3">
         {navItems.map((item) => {

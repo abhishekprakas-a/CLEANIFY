@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LandingNavbar } from "@/components/landing/navbar";
 import { LandingFaq } from "@/components/landing/faq";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { StarRating } from "@/components/ui/starRating";
 import { getSessionUser } from "@/lib/authGuard";
@@ -405,8 +406,8 @@ export default async function LandingPage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
           <div>
-            <div className="flex items-center gap-2 text-xl font-bold text-brand-700">
-              Cleanify
+            <div className="flex items-center gap-2">
+              <Logo className="h-7" />
             </div>
             <p className="mt-2 text-sm text-slate-500">
               Professional cleaning services you can trust — water tanks,
@@ -437,7 +438,7 @@ export default async function LandingPage() {
             <p className="font-semibold text-slate-700">Contact</p>
             <ul className="mt-2 space-y-1 text-slate-500">
               <li>📞 8848483892</li>
-              <li>✉️ hello@cleanify.example</li>
+              <li>✉️ cleanifycleaningservice88@gmail.com</li>
               <li>
                 <Link
                   href="/login"

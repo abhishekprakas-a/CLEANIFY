@@ -8,13 +8,8 @@ export const metadata: Metadata = {
   title: env.appName,
   description: "Water Tank Cleaning Service Management System",
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: "/icons/apple-touch-icon.png",
-  },
+  // Favicon comes from src/app/icon.svg (file-based metadata). The PWA/app
+  // icon is defined in manifest.ts.
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -23,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0084cd",
+  themeColor: "#0f2a30",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

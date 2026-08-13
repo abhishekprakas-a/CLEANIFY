@@ -303,17 +303,16 @@ export interface Photo {
   updatedAt: string;
 }
 
-/** A job awaiting photo approval, with the photos for its current gate. */
-export interface PendingReviewItem {
+/** A job with its before/after photos, for the admin read-only gallery. */
+export interface JobPhotoGroup {
   job: {
     id: Id;
     jobCode: string;
     status: JobStatus;
     customerName: string;
-    scheduledDate?: string;
   };
-  gate: PhotoKind;
-  photos: Photo[];
+  before: Photo[];
+  after: Photo[];
 }
 
 export interface Review {

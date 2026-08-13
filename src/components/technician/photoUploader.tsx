@@ -12,6 +12,9 @@ interface PresignResult {
   publicUrl: string;
 }
 
+/** Largest image we accept for upload (after in-browser compression). */
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+
 type ItemStatus = "compressing" | "uploading" | "done" | "error";
 interface UploadItem {
   key: string;
@@ -75,11 +78,37 @@ export function PhotoUploader({
     );
   }, []);
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deletePhoto = useCallback(
+    async (photoId: string) => {
+      if (!confirm("Delete this photo?")) return;
+      setDeletingId(photoId);
+      try {
+        await api.delete(`/api/photos/${photoId}`);
+        await reload();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : "Could not delete photo");
+      } finally {
+        setDeletingId(null);
+      }
+    },
+    [reload],
+  );
+
   const process = useCallback(
     async (item: UploadItem) => {
       try {
         patch(item.key, { status: "compressing", error: undefined });
         const compressed = await compressImage(item.file);
+
+        if (compressed.blob.size > MAX_UPLOAD_BYTES) {
+          patch(item.key, {
+            status: "error",
+            error: "Image is larger than 5 MB — please retake at a lower quality.",
+          });
+          return;
+        }
 
         const presign = await api.post<PresignResult>("/api/photos/presign", {
           jobId,
@@ -159,6 +188,17 @@ export function PhotoUploader({
               >
                 {p.approvalStatus}
               </span>
+              {!disabled && (
+                <button
+                  type="button"
+                  aria-label="Delete photo"
+                  disabled={deletingId === p.id}
+                  onClick={() => deletePhoto(p.id)}
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
 

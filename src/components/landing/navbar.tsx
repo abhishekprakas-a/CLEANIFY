@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/brand/logo";
 
 const links = [
   { href: "#services", label: "Services" },
@@ -23,11 +24,8 @@ export function LandingNavbar({
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-bold text-brand-700"
-        >
-          <span className="text-xl tracking-tight">Cleanify</span>
+        <Link href="/" className="flex items-center" aria-label="Cleanify home">
+          <Logo className="h-7" />
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex">

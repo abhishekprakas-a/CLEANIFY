@@ -5,6 +5,7 @@
 export const routes = {
   home: "/",
   login: "/login",
+  signup: "/signup",
   forgotPassword: "/forgotPassword",
   resetPassword: "/resetPassword",
 
@@ -16,6 +17,7 @@ export const routes = {
     jobs: "/jobs",
     jobNew: "/jobs/new",
     approvals: "/approvals",
+    photos: "/photos",
     reviews: "/reviews",
     attendance: "/attendance",
     reports: "/reports",
@@ -33,6 +35,7 @@ export const routes = {
   api: {
     auth: {
       login: "/api/auth/login",
+      signup: "/api/auth/signup",
       logout: "/api/auth/logout",
       me: "/api/auth/me",
       refresh: "/api/auth/refresh",

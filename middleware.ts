@@ -15,6 +15,7 @@ const adminPrefixes = [
   routes.admin.bookings,
   routes.admin.schedule,
   routes.admin.jobs,
+  routes.admin.photos,
   routes.admin.approvals,
   routes.admin.reviews,
   routes.admin.reports,
@@ -98,6 +99,7 @@ export const config = {
     "/bookings/:path*",
     "/schedule/:path*",
     "/jobs/:path*",
+    "/photos/:path*",
     "/approvals/:path*",
     "/reviews/:path*",
     "/reports/:path*",
@@ -105,6 +107,6 @@ export const config = {
     "/audit/:path*",
     "/attendance/:path*",
     "/technician/:path*",
-    "/api/((?!health|auth/login|auth/logout|auth/refresh|auth/forgotPassword|auth/resetPassword).*)",
+    "/api/((?!health|auth/login|auth/signup|auth/logout|auth/refresh|auth/forgotPassword|auth/resetPassword).*)",
   ],
 };

@@ -22,6 +22,20 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+/** Public self-registration. Always creates a technician pending verification. */
+export const signupSchema = z
+  .object({
+    name: z.string().min(2, "Name is required"),
+    email: z.string().email("Enter a valid email"),
+    phone: z.string().min(8, "Enter a valid phone number"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const createUserSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Enter a valid email"),
@@ -34,11 +48,12 @@ export const updateUserSchema = createUserSchema
   .partial()
   .omit({ password: true })
   .extend({
-    status: z.enum(["active", "inactive"]).optional(),
+    status: z.enum(["active", "inactive", "pending"]).optional(),
     password: z.string().min(6).optional(),
   });
 
 export type LoginInput = z.infer<typeof loginSchema>;
+export type SignupInput = z.infer<typeof signupSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;

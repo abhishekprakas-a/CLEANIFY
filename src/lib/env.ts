@@ -14,6 +14,17 @@ function optional(name: string, fallback = ""): string {
   return process.env[name] ?? fallback;
 }
 
+/** A required secret that must also meet a minimum length (weak keys fail fast). */
+function requiredSecret(name: string, minLength = 32): string {
+  const value = required(name);
+  if (value.length < minLength) {
+    throw new Error(
+      `Environment variable ${name} must be at least ${minLength} characters`,
+    );
+  }
+  return value;
+}
+
 export const env = {
   nodeEnv: optional("NODE_ENV", "development"),
   isProd: process.env.NODE_ENV === "production",
@@ -24,7 +35,7 @@ export const env = {
   mongodbUri: required("MONGODB_URI"),
   mongodbDbName: optional("MONGODB_DB_NAME", "waterTankCleaning"),
 
-  jwtSecret: required("JWT_SECRET"),
+  jwtSecret: requiredSecret("JWT_SECRET", 32),
   jwtAccessExpiresIn: optional("JWT_ACCESS_EXPIRES_IN", "15m"),
   authCookieName: optional("AUTH_COOKIE_NAME", "wtcs_token"),
   refreshCookieName: optional("AUTH_REFRESH_COOKIE_NAME", "wtcs_refresh"),
@@ -39,16 +50,19 @@ export const env = {
   vapidPrivateKey: optional("VAPID_PRIVATE_KEY"),
   vapidSubject: optional("VAPID_SUBJECT", "mailto:admin@watertank.local"),
 
-  // Object storage — Cloudflare R2 (S3-compatible API). Endpoint can be given
-  // directly or derived from the account id. Region is always "auto" for R2.
-  r2AccountId: optional("R2_ACCOUNT_ID"),
-  r2Endpoint: optional("R2_ENDPOINT"),
-  r2Region: optional("R2_REGION", "auto"),
-  r2Bucket: optional("R2_BUCKET"),
-  r2AccessKeyId: optional("R2_ACCESS_KEY_ID"),
-  r2SecretAccessKey: optional("R2_SECRET_ACCESS_KEY"),
-  r2PublicBaseUrl: optional("R2_PUBLIC_BASE_URL"),
-  r2PresignedExpiresSeconds: Number(
-    optional("R2_PRESIGNED_EXPIRES_SECONDS", "300"),
-  ),
+  // Object storage for before/after job photos (AWS S3, or any S3-compatible
+  // provider such as MinIO). For AWS S3 leave S3_ENDPOINT empty — the SDK
+  // derives the host from the region.
+  storage: {
+    endpoint: optional("S3_ENDPOINT"),
+    region: optional("S3_REGION", "us-east-1"),
+    bucket: optional("S3_BUCKET"),
+    accessKeyId: optional("S3_ACCESS_KEY_ID"),
+    secretAccessKey: optional("S3_SECRET_ACCESS_KEY"),
+    // Base URL the saved photos are served from (public bucket or CDN domain).
+    publicBaseUrl: optional("S3_PUBLIC_BASE_URL"),
+    // Path-style is needed for MinIO / some S3-compatible hosts (AWS: false).
+    forcePathStyle: optional("S3_FORCE_PATH_STYLE") === "true",
+    presignExpires: Number(optional("S3_PRESIGNED_EXPIRES_SECONDS", "300")),
+  },
 };

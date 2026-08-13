@@ -1,13 +1,14 @@
 import { handleRoute } from "@/lib/apiHandler";
 import { ok } from "@/lib/apiResponse";
-import { requirePermission } from "@/lib/authGuard";
+import { requireRole } from "@/lib/authGuard";
 import { photoService } from "@/services";
-import { permissions } from "@/constants";
+import { roles } from "@/constants";
 
+/** Read-only before/after photo gallery for admins. */
 export async function GET() {
   return handleRoute(async () => {
-    await requirePermission(permissions.photosApprove);
-    const items = await photoService.pendingReview();
+    await requireRole([roles.admin]);
+    const items = await photoService.gallery();
     return ok(items);
   });
 }

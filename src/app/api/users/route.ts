@@ -17,7 +17,10 @@ export async function GET(req: NextRequest) {
     await dbConnect();
     const query = parseListQuery(req.nextUrl.searchParams);
     const role = req.nextUrl.searchParams.get("role");
-    const filter = role ? { role } : {};
+    const status = req.nextUrl.searchParams.get("status");
+    const filter: Record<string, unknown> = {};
+    if (role) filter.role = role;
+    if (status) filter.status = status;
     const docs = await userModel
       .find(filter)
       .sort(query.sort)

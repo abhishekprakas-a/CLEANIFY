@@ -89,6 +89,10 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const customer = customerOf(job);
   const maps = mapsUrl(customer);
   const status = job.status;
+  const itemNoun = (
+    serviceConfig[(job.serviceType as ServiceType) ?? "waterTank"] ??
+    serviceConfig.waterTank
+  ).itemLabel.toLowerCase();
 
   return (
     <div className="space-y-4">
@@ -204,11 +208,12 @@ export function JobDetail({ jobId }: { jobId: string }) {
         </Card>
       )}
 
-      {status === jobStatus.reachedSite && (
+      {(status === jobStatus.reachedSite ||
+        status === jobStatus.beforePhotoPendingApproval) && (
         <Card>
           <CardTitle>Step 2 — Before-cleaning photos</CardTitle>
           <p className="mb-3 mt-1 text-sm text-slate-500">
-            Capture the tank before cleaning, then submit for approval.
+            Capture the {itemNoun} before cleaning, then start the work.
           </p>
           <PhotoUploader
             jobId={jobId}
@@ -218,32 +223,20 @@ export function JobDetail({ jobId }: { jobId: string }) {
           <Button
             className="mt-3 w-full"
             disabled={busy || beforeCount < 1}
-            onClick={() => transition(jobStatus.beforePhotoPendingApproval)}
+            onClick={() => transition(jobStatus.cleaningInProgress)}
           >
-            Submit before photos for approval
+            Start cleaning
           </Button>
         </Card>
       )}
 
-      {status === jobStatus.beforePhotoPendingApproval && (
+      {(status === jobStatus.cleaningInProgress ||
+        status === jobStatus.afterPhotoPendingApproval) && (
         <Card>
-          <CardTitle>Step 3 — Awaiting approval</CardTitle>
-          <p className="mt-1 text-sm text-amber-700">
-            Before photos submitted. Waiting for admin approval to start
-            cleaning.
-          </p>
-          <div className="mt-3">
-            <PhotoUploader jobId={jobId} photoType="before" disabled />
-          </div>
-        </Card>
-      )}
-
-      {status === jobStatus.cleaningInProgress && (
-        <Card>
-          <CardTitle>Step 4 — Clean &amp; upload after photos</CardTitle>
+          <CardTitle>Step 3 — After-cleaning photos &amp; finish</CardTitle>
           <p className="mb-3 mt-1 text-sm text-slate-500">
-            Approved — cleaning in progress. Upload after-cleaning photos and
-            finish.
+            Cleaning in progress. Upload after-cleaning photos, then complete the
+            job.
           </p>
           <PhotoUploader
             jobId={jobId}
@@ -260,22 +253,13 @@ export function JobDetail({ jobId }: { jobId: string }) {
             className="mt-3 w-full"
             disabled={busy || afterCount < 1}
             onClick={() =>
-              transition(jobStatus.afterPhotoPendingApproval, {
+              transition(jobStatus.completed, {
                 completionNotes: notes || undefined,
               })
             }
           >
-            Submit after photos
+            Complete job
           </Button>
-        </Card>
-      )}
-
-      {status === jobStatus.afterPhotoPendingApproval && (
-        <Card>
-          <CardTitle>Step 5 — Awaiting final approval</CardTitle>
-          <p className="mt-1 text-sm text-amber-700">
-            After photos submitted. The job completes once admin approves.
-          </p>
         </Card>
       )}
 

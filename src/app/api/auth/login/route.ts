@@ -11,8 +11,10 @@ export async function POST(req: NextRequest) {
   return handleRoute(async () => {
     const input = loginSchema.parse(await req.json());
     const ctx = getRequestContext(input.remember);
-    // 5 attempts / minute per IP+email to slow brute force.
+    // Per IP+email (slows targeting one account) AND per IP (slows spraying
+    // many accounts from one source).
     enforceRateLimit(`login:${ctx.ip ?? "?"}:${input.email}`, 5, 60_000);
+    enforceRateLimit(`login-ip:${ctx.ip ?? "?"}`, 20, 60_000);
     const result = await authService.login(input, ctx);
 
     setAccessCookie(result.accessToken, result.rememberDays);

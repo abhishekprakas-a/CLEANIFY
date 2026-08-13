@@ -25,7 +25,9 @@ export async function signAccessToken(payload: JwtPayload): Promise<string> {
 /** Verify an access token. Returns the session user or null. */
 export async function verifyToken(token: string): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ["HS256"],
+    });
     if (!payload.sub || !payload.role) return null;
     return {
       id: String(payload.sub),

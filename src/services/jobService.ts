@@ -237,7 +237,8 @@ export const jobService = {
           );
         }
       }
-      if (next === jobStatus.beforePhotoPendingApproval) {
+      // Starting cleaning requires at least one before photo.
+      if (next === jobStatus.cleaningInProgress) {
         const before = await photoModel.countDocuments({
           jobId: job._id,
           photoType: photoKind.before,
@@ -246,7 +247,8 @@ export const jobService = {
           throw ApiError.unprocessable("Upload at least one before photo");
         }
       }
-      if (next === jobStatus.afterPhotoPendingApproval) {
+      // Completing the job requires at least one after photo.
+      if (next === jobStatus.completed) {
         const after = await photoModel.countDocuments({
           jobId: job._id,
           photoType: photoKind.after,

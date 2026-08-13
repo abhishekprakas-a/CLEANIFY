@@ -41,6 +41,10 @@ yarn-error.log*
 .env
 .env*.local
 
+# runtime logs (may contain sensitive request data)
+/Logs
+*.log
+
 # typescript
 *.tsbuildinfo
 

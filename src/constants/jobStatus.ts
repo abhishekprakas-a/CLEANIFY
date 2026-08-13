@@ -24,24 +24,28 @@ export const terminalJobStatuses: JobStatus[] = [
 
 /**
  * Allowed transitions. Any transition not listed here is rejected with an
- * INVALID_TRANSITION error. The before/after photo approval edges (admin) and
- * the technician execution edges share this table; role gating is separate.
+ * INVALID_TRANSITION error.
+ *
+ * Photo approval was removed: technicians drive the job straight through —
+ * upload before photos → start cleaning → upload after photos → complete.
+ * The legacy `beforePhotoPendingApproval`/`afterPhotoPendingApproval` states
+ * are kept (with edges out of them) so any job already in one of those states
+ * can still be finished; nothing transitions *into* them anymore.
  */
 export const jobTransitions: Record<JobStatus, JobStatus[]> = {
   pending: [jobStatus.scheduled, jobStatus.cancelled],
   scheduled: [jobStatus.assigned, jobStatus.cancelled],
   assigned: [jobStatus.reachedSite, jobStatus.cancelled],
-  reachedSite: [jobStatus.beforePhotoPendingApproval, jobStatus.cancelled],
-  // admin approves before photos → cleaning; rejects → back to site
+  // upload before photos, then start cleaning (no approval)
+  reachedSite: [jobStatus.cleaningInProgress, jobStatus.cancelled],
+  // legacy: resolve an already-pending before-photo job
   beforePhotoPendingApproval: [
     jobStatus.cleaningInProgress,
     jobStatus.reachedSite,
   ],
-  cleaningInProgress: [
-    jobStatus.afterPhotoPendingApproval,
-    jobStatus.cancelled,
-  ],
-  // admin approves after photos → completed; rejects → back to cleaning
+  // upload after photos, then complete (no approval)
+  cleaningInProgress: [jobStatus.completed, jobStatus.cancelled],
+  // legacy: resolve an already-pending after-photo job
   afterPhotoPendingApproval: [
     jobStatus.completed,
     jobStatus.cleaningInProgress,
@@ -51,9 +55,9 @@ export const jobTransitions: Record<JobStatus, JobStatus[]> = {
 };
 
 /**
- * Role permitted to drive each transition through the **generic** transition
- * endpoint. Approval/rejection edges are performed by admins through the photo
- * endpoints (which apply the transition internally, bypassing this map).
+ * Role permitted to move a job *into* each status through the generic
+ * transition endpoint. Technicians now drive the execution edges end-to-end
+ * (start cleaning + complete); admins retain scheduling/assignment edges.
  */
 export const jobTransitionRoles: Record<JobStatus, Role[]> = {
   pending: [roles.admin],
@@ -61,9 +65,9 @@ export const jobTransitionRoles: Record<JobStatus, Role[]> = {
   assigned: [roles.admin],
   reachedSite: [roles.technician],
   beforePhotoPendingApproval: [roles.technician],
-  cleaningInProgress: [roles.admin],
+  cleaningInProgress: [roles.technician, roles.admin],
   afterPhotoPendingApproval: [roles.technician],
-  completed: [roles.admin],
+  completed: [roles.technician, roles.admin],
   cancelled: [roles.admin],
 };
 

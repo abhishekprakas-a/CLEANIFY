@@ -1,17 +1,24 @@
 import { dbConnect } from "@/lib/dbConnect";
 import { ApiError } from "@/lib/apiError";
 import { toDto, toDtoList } from "@/lib/serialize";
-import { createPresignedUpload, type PresignResult } from "@/lib/storageClient";
-import { applyJobTransition } from "@/lib/jobWorkflow";
+import {
+  createPresignedUpload,
+  deleteObject,
+  getObjectSize,
+  publicUrlForKey,
+  type PresignResult,
+} from "@/lib/storageClient";
 import { recordAudit } from "@/lib/audit";
-import { approvalStatus, jobStatus, photoKind } from "@/constants";
+import { approvalStatus, jobStatus, photoKind, roles } from "@/constants";
 import { jobModel, photoModel } from "@/models";
 import type {
   ConfirmPhotoInput,
   PresignPhotoInput,
-  RejectPhotoInput,
 } from "@/schemas/photoSchema";
-import type { PendingReviewItem, Photo, SessionUser } from "@/types";
+import type { JobPhotoGroup, Photo, SessionUser } from "@/types";
+
+/** Hard server-side cap on a stored photo (the client compresses to ~5 MB). */
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 
 function extFromContentType(contentType: string): string {
   return contentType.split("/")[1]?.toLowerCase() ?? "jpg";
@@ -57,10 +64,20 @@ export const photoService = {
       throw ApiError.badRequest("Invalid upload key");
     }
 
+    // The presigned PUT can't bound object size, so verify the *actual* stored
+    // size here and reject/clean up anything over the cap. Fails open only if
+    // the store doesn't allow HEAD (then the client-reported size still applies).
+    const actualSize = await getObjectSize(input.s3Key).catch(() => undefined);
+    if (actualSize != null && actualSize > MAX_PHOTO_BYTES) {
+      await deleteObject(input.s3Key).catch(() => {});
+      throw ApiError.unprocessable("Photo exceeds the 8 MB limit");
+    }
+
     const photo = await photoModel.create({
       jobId: input.jobId,
       photoType: input.photoType,
-      photoUrl: input.photoUrl,
+      // Derived server-side from the validated key — never trust a client URL.
+      photoUrl: publicUrlForKey(input.s3Key),
       s3Key: input.s3Key,
       uploadedBy: user.id,
       approvalStatus: approvalStatus.pending,
@@ -83,164 +100,110 @@ export const photoService = {
     return toDto<Photo>(photo.toObject());
   },
 
+  /**
+   * Delete a photo: detach it from its job, remove the DB row, and delete the
+   * S3 object. The uploader can delete their own photos (admins can delete any)
+   * as long as the job isn't already completed.
+   */
+  async remove(id: string, user: SessionUser): Promise<void> {
+    await dbConnect();
+    const photo = await photoModel.findById(id);
+    if (!photo) throw ApiError.notFound("Photo not found");
+
+    const isOwner = String(photo.uploadedBy) === user.id;
+    const isAdmin = user.role === roles.admin;
+    if (!isOwner && !isAdmin) {
+      throw ApiError.forbidden("You can only delete photos you uploaded");
+    }
+
+    const job = await jobModel.findById(photo.jobId);
+    if (job && job.status === jobStatus.completed && !isAdmin) {
+      throw ApiError.unprocessable(
+        "This job is completed; its photos can't be changed",
+      );
+    }
+
+    if (job) {
+      const field =
+        photo.photoType === photoKind.before ? "beforePhotos" : "afterPhotos";
+      await jobModel.findByIdAndUpdate(job._id, {
+        $pull: { [field]: photo._id },
+      });
+    }
+    await photoModel.deleteOne({ _id: photo._id });
+    // Best-effort object delete — the DB row is the source of truth, so an
+    // orphaned object is harmless if this fails.
+    try {
+      await deleteObject(photo.s3Key);
+    } catch {
+      /* ignore */
+    }
+
+    await recordAudit({
+      actor: user.id,
+      actorName: user.name,
+      action: "photo.delete",
+      entityType: "photo",
+      entityId: id,
+      meta: { jobId: String(photo.jobId), photoType: photo.photoType },
+    });
+  },
+
   async listByJob(jobId: string): Promise<Photo[]> {
     await dbConnect();
     const docs = await photoModel.find({ jobId }).sort({ createdAt: 1 }).lean();
     return toDtoList<Photo>(docs);
   },
 
-  /** Jobs awaiting before/after photo approval, with their gate's photos. */
-  async pendingReview(): Promise<PendingReviewItem[]> {
+  /**
+   * Read-only gallery for admins: recent jobs that have photos, each with its
+   * before/after sets. Replaces the old approval queue now that photos are no
+   * longer gated.
+   */
+  async gallery(limit = 60): Promise<JobPhotoGroup[]> {
     await dbConnect();
+    const recent = await photoModel
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(400)
+      .lean();
+    if (recent.length === 0) return [];
+
+    const order: string[] = [];
+    const byJob = new Map<string, { before: Photo[]; after: Photo[] }>();
+    for (const p of recent) {
+      const jid = String(p.jobId);
+      if (!byJob.has(jid)) {
+        byJob.set(jid, { before: [], after: [] });
+        order.push(jid);
+      }
+      const group = byJob.get(jid)!;
+      const dto = toDto<Photo>(p);
+      if (p.photoType === photoKind.before) group.before.push(dto);
+      else group.after.push(dto);
+    }
+
+    const jobIds = order.slice(0, limit);
     const jobs = await jobModel
-      .find({
-        status: {
-          $in: [
-            jobStatus.beforePhotoPendingApproval,
-            jobStatus.afterPhotoPendingApproval,
-          ],
-        },
-      })
-      .sort({ updatedAt: 1 })
+      .find({ _id: { $in: jobIds } })
       .populate("customer", "customerName")
       .lean();
+    const jobById = new Map(jobs.map((j) => [String(j._id), j]));
 
-    return Promise.all(
-      jobs.map(async (job) => {
-        const gate =
-          job.status === jobStatus.beforePhotoPendingApproval
-            ? photoKind.before
-            : photoKind.after;
-        const photos = await photoModel
-          .find({ jobId: job._id, photoType: gate })
-          .sort({ createdAt: 1 })
-          .lean();
-        const customer = job.customer as { customerName?: string } | undefined;
-        return {
-          job: {
-            id: String(job._id),
-            jobCode: job.jobCode,
-            status: job.status as PendingReviewItem["job"]["status"],
-            customerName: customer?.customerName ?? "—",
-            scheduledDate: job.scheduledDate
-              ? new Date(job.scheduledDate).toISOString()
-              : undefined,
-          },
-          gate,
-          photos: toDtoList<Photo>(photos),
-        };
-      }),
-    );
-  },
-
-  /**
-   * Approve a photo. When all photos of the gating kind are approved, advance:
-   *   beforePhotoPendingApproval → cleaningInProgress
-   *   afterPhotoPendingApproval  → completed
-   */
-  async approve(id: string, user: SessionUser): Promise<Photo> {
-    await dbConnect();
-    const photo = await photoModel.findById(id);
-    if (!photo) throw ApiError.notFound("Photo not found");
-
-    photo.approvalStatus = approvalStatus.approved;
-    photo.reviewedBy = user.id as never;
-    photo.reviewedAt = new Date();
-    await photo.save();
-
-    await photoService.advanceGate(String(photo.jobId), photo.photoType, user);
-    await recordAudit({
-      actor: user.id,
-      actorName: user.name,
-      action: "photo.approve",
-      entityType: "photo",
-      entityId: id,
-      meta: { jobId: String(photo.jobId), photoType: photo.photoType },
+    return jobIds.map((jid) => {
+      const j = jobById.get(jid);
+      const group = byJob.get(jid)!;
+      const customer = j?.customer as { customerName?: string } | undefined;
+      return {
+        job: {
+          id: jid,
+          jobCode: j?.jobCode ?? "—",
+          status: (j?.status ?? "pending") as JobPhotoGroup["job"]["status"],
+          customerName: customer?.customerName ?? "—",
+        },
+        before: group.before,
+        after: group.after,
+      };
     });
-    return toDto<Photo>(photo.toObject());
-  },
-
-  /**
-   * Reject a photo and send the job back for re-work:
-   *   beforePhotoPendingApproval → reachedSite (retake before photos)
-   *   afterPhotoPendingApproval  → cleaningInProgress (retake after photos)
-   */
-  async reject(
-    id: string,
-    input: RejectPhotoInput,
-    user: SessionUser,
-  ): Promise<Photo> {
-    await dbConnect();
-    const photo = await photoModel.findById(id);
-    if (!photo) throw ApiError.notFound("Photo not found");
-
-    photo.approvalStatus = approvalStatus.rejected;
-    photo.rejectionReason = input.rejectionReason;
-    photo.reviewedBy = user.id as never;
-    photo.reviewedAt = new Date();
-    await photo.save();
-
-    const job = await jobModel.findById(photo.jobId);
-    if (!job) return toDto<Photo>(photo.toObject());
-
-    if (job.status === jobStatus.beforePhotoPendingApproval) {
-      applyJobTransition(
-        job,
-        jobStatus.reachedSite,
-        user.id,
-        input.rejectionReason,
-      );
-      await job.save();
-    } else if (job.status === jobStatus.afterPhotoPendingApproval) {
-      applyJobTransition(
-        job,
-        jobStatus.cleaningInProgress,
-        user.id,
-        input.rejectionReason,
-      );
-      await job.save();
-    }
-
-    await recordAudit({
-      actor: user.id,
-      actorName: user.name,
-      action: "photo.reject",
-      entityType: "photo",
-      entityId: id,
-      meta: { reason: input.rejectionReason },
-    });
-
-    return toDto<Photo>(photo.toObject());
-  },
-
-  /** Advance the job's gate when every photo of `photoType` is approved. */
-  async advanceGate(
-    jobId: string,
-    photoType: string,
-    user: SessionUser,
-  ): Promise<void> {
-    const job = await jobModel.findById(jobId);
-    if (!job) return;
-
-    const pending = await photoModel.countDocuments({
-      jobId,
-      photoType,
-      approvalStatus: { $ne: approvalStatus.approved },
-    });
-    if (pending > 0) return;
-
-    if (
-      photoType === photoKind.before &&
-      job.status === jobStatus.beforePhotoPendingApproval
-    ) {
-      applyJobTransition(job, jobStatus.cleaningInProgress, user.id);
-      await job.save();
-    } else if (
-      photoType === photoKind.after &&
-      job.status === jobStatus.afterPhotoPendingApproval
-    ) {
-      applyJobTransition(job, jobStatus.completed, user.id);
-      await job.save();
-    }
   },
 };

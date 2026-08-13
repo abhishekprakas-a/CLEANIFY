@@ -22,7 +22,6 @@ export const permissions = {
 
   photosRead: "photos:read",
   photosUpload: "photos:upload",
-  photosApprove: "photos:approve",
 
   attendanceRead: "attendance:read",
   attendanceWrite: "attendance:write",
@@ -57,7 +56,6 @@ export const permissionDescriptions: Record<Permission, string> = {
   [permissions.jobsTransition]: "Advance job workflow status",
   [permissions.photosRead]: "View job photos",
   [permissions.photosUpload]: "Upload job photos",
-  [permissions.photosApprove]: "Approve or reject job photos",
   [permissions.attendanceRead]: "View attendance records",
   [permissions.attendanceWrite]: "Check in and check out",
   [permissions.reviewsRead]: "View reviews",

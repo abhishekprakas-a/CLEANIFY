@@ -46,7 +46,34 @@ const withPWA = withPWAInit({
   ],
 });
 
+const isProd = process.env.NODE_ENV === "production";
+
+/**
+ * Content-Security-Policy. Locks down the structural vectors (base-uri,
+ * object/embed, framing, form targets) and constrains where scripts, styles,
+ * images and connections may come from. `unsafe-inline` is required for Next's
+ * inline hydration/runtime; `unsafe-eval` and ws: are dev-only (React Refresh /
+ * HMR) and dropped in production.
+ */
+const csp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isProd ? "" : " 'unsafe-eval'"}`,
+  `connect-src 'self' https:${isProd ? "" : " ws: wss:"}`,
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+]
+  .join("; ")
+  .concat(isProd ? "; upgrade-insecure-requests" : "");
+
 const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
