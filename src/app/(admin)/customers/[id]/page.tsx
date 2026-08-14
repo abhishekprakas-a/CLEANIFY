@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { customerService } from "@/services";
 import { ApiError } from "@/lib/apiError";
+import { toMapHref } from "@/lib/mapLink";
 import { routes } from "@/constants";
 
 export const dynamic = "force-dynamic";
@@ -69,9 +70,9 @@ export default async function CustomerDetailPage({
             <div>
               <dt className="text-slate-400">Google Maps</dt>
               <dd className="font-medium text-slate-800">
-                {customer.googleMapLocation ? (
+                {toMapHref(customer.googleMapLocation) ? (
                   <a
-                    href={customer.googleMapLocation}
+                    href={toMapHref(customer.googleMapLocation) as string}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-brand-600 hover:text-brand-700"

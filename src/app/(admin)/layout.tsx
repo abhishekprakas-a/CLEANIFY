@@ -11,7 +11,7 @@ export default async function AdminLayout({
 }) {
   const user = await getSessionUser();
   if (!user) redirect(routes.login);
-  if (user.role !== roles.admin) redirect(routes.technician.home);
+  if (user.role !== roles.admin) redirect(routes.unauthorized);
 
   return (
     <div className="flex min-h-screen">

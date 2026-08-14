@@ -17,7 +17,7 @@ const mobileNumberSchema = z
 // Location links are a convenience field. Accept anything a user might paste —
 // full URLs, protocol-less short links (maps.app.goo.gl/…), or links shared from
 // WhatsApp/Maps — rather than rejecting valid links that fail strict URL parsing.
-const googleMapLocationSchema = z
+export const googleMapLocationSchema = z
   .string()
   .trim()
   .max(500, "Link is too long")

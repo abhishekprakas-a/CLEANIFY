@@ -83,6 +83,8 @@ export const jobIntakeService = {
       customerId,
       serviceType: input.serviceType ?? "waterTank",
       workName: input.workName || undefined,
+      googleMapLocation: input.googleMapLocation?.trim() || undefined,
+      landmark: input.landmark?.trim() || undefined,
       tanks,
       totalCharge,
       scheduledDate: input.scheduledDate,

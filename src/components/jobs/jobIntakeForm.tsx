@@ -49,6 +49,8 @@ export function JobIntakeForm() {
       customer: { id: "" },
       serviceType: "waterTank",
       workName: "",
+      googleMapLocation: "",
+      landmark: "",
       tanks: [emptyTank as never],
       technicianIds: [],
       scheduledTime: "",
@@ -318,6 +320,16 @@ export function JobIntakeForm() {
           placeholder="Total charge for this job"
           error={errors.totalCharge?.message}
           {...register("totalCharge")}
+        />
+        <Input
+          label="Job location — Google Maps link (optional)"
+          placeholder="Paste the location link so the worker can navigate"
+          {...register("googleMapLocation")}
+        />
+        <Input
+          label="Landmark (optional)"
+          placeholder="e.g. behind the temple, blue gate"
+          {...register("landmark")}
         />
       </section>
 

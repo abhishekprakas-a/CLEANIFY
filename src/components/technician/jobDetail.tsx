@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PhotoUploader } from "@/components/technician/photoUploader";
 import { JobTimeline } from "@/components/technician/jobTimeline";
 import { api } from "@/hooks/useApi";
+import { toMapHref } from "@/lib/mapLink";
 import {
   jobStatus,
   routes,
@@ -31,13 +32,10 @@ function customerOf(job: DetailJob): PopulatedCustomer {
   return typeof job.customer === "object" ? job.customer : {};
 }
 
-function mapsUrl(c: PopulatedCustomer): string | null {
-  if (c.googleMapLocation) {
-    // Accept links pasted without a scheme (e.g. from WhatsApp) — BG-05.
-    return /^https?:\/\//i.test(c.googleMapLocation)
-      ? c.googleMapLocation
-      : `https://${c.googleMapLocation}`;
-  }
+/** The job's own map link wins; else the customer's; else a search on the address. */
+function mapsUrl(job: DetailJob, c: PopulatedCustomer): string | null {
+  const link = toMapHref(job.googleMapLocation || c.googleMapLocation);
+  if (link) return link;
   if (c.address)
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.address)}`;
   return null;
@@ -87,7 +85,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     return <p className="text-sm text-red-600">{error ?? "Job not found"}</p>;
 
   const customer = customerOf(job);
-  const maps = mapsUrl(customer);
+  const maps = mapsUrl(job, customer);
   const status = job.status;
   const itemNoun = (
     serviceConfig[(job.serviceType as ServiceType) ?? "waterTank"] ??
@@ -130,6 +128,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
         {customer.address && (
           <p className="mt-1 whitespace-pre-line text-sm text-slate-500">
             {customer.address}
+          </p>
+        )}
+        {job.landmark && (
+          <p className="mt-1 text-sm font-medium text-slate-600">
+            📍 Landmark: {job.landmark}
           </p>
         )}
         {maps && (

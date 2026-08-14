@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { allBookingStatuses, allServiceTypes } from "@/constants";
+import { googleMapLocationSchema } from "./customerSchema";
 
 const timeSchema = z
   .string()
@@ -28,6 +29,8 @@ export const createBookingSchema = z.object({
     .default("waterTank"),
   workName: z.string().trim().optional(),
   totalCharge: optionalNumber(z.coerce.number().min(0).max(10_000_000).optional()),
+  googleMapLocation: googleMapLocationSchema,
+  landmark: z.string().trim().optional(),
   tanks: z.array(tankEntrySchema).min(1, "Add at least one item"),
   scheduledDate: z.coerce.date(),
   scheduledTime: timeSchema,

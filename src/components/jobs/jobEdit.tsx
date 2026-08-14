@@ -90,6 +90,8 @@ export function JobEdit({ id }: { id: string }) {
           workName: j.workName ?? "",
           serviceType: (j.serviceType as ServiceType) ?? "waterTank",
           totalCharge: j.totalCharge,
+          googleMapLocation: j.googleMapLocation ?? "",
+          landmark: j.landmark ?? "",
           tanks: (j.tanks ?? []) as never,
         });
         setCrew((j.assignedTechnicians ?? []).map(refId).filter(Boolean));
@@ -328,6 +330,20 @@ export function JobEdit({ id }: { id: string }) {
           disabled={isTerminal}
           error={errors.totalCharge?.message}
           {...register("totalCharge")}
+        />
+
+        <Input
+          label="Google Maps link (optional)"
+          placeholder="Location link for the assigned worker"
+          disabled={isTerminal}
+          error={errors.googleMapLocation?.message as string | undefined}
+          {...register("googleMapLocation")}
+        />
+        <Input
+          label="Landmark (optional)"
+          placeholder="e.g. behind the temple, blue gate"
+          disabled={isTerminal}
+          {...register("landmark")}
         />
 
         <Button type="submit" disabled={isSubmitting || isTerminal}>

@@ -87,8 +87,11 @@ function forbid(pathname: string, req: NextRequest) {
       { status: 403 },
     );
   }
+  // Authenticated but wrong role — send to an access-denied page (not the login
+  // screen, which is confusing for a user who IS signed in).
   const url = req.nextUrl.clone();
-  url.pathname = routes.login;
+  url.pathname = routes.unauthorized;
+  url.search = "";
   return NextResponse.redirect(url);
 }
 

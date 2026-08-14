@@ -7,7 +7,13 @@ import { sendPasswordResetEmail } from "@/lib/mailer";
 import { recordAudit } from "@/lib/audit";
 import { env } from "@/lib/env";
 import { toDto } from "@/lib/serialize";
-import { userModel } from "@/models";
+import {
+  attendanceModel,
+  jobAssignmentModel,
+  jobModel,
+  reviewModel,
+  userModel,
+} from "@/models";
 import { roles, routes, userStatus, type Role } from "@/constants";
 import { sessionService, type SessionContext } from "./sessionService";
 import { roleService } from "./roleService";
@@ -271,8 +277,57 @@ export const authService = {
   },
 
   /** Update a staff user (name/phone/role/status, optional password). */
-  async updateUser(id: string, input: UpdateUserInput): Promise<User> {
+  async updateUser(
+    id: string,
+    input: UpdateUserInput,
+    actor: SessionUser,
+  ): Promise<User> {
     await dbConnect();
+    const target = await userModel.findById(id);
+    if (!target) throw ApiError.notFound("User not found");
+
+    // Guard: deactivating or demoting an active admin can lock everyone out.
+    const deactivating =
+      input.status !== undefined && input.status !== userStatus.active;
+    const demoting = input.role !== undefined && input.role !== roles.admin;
+    if (
+      target.role === roles.admin &&
+      target.status === userStatus.active &&
+      (deactivating || demoting)
+    ) {
+      if (id === actor.id) {
+        throw ApiError.badRequest(
+          "You can't deactivate or change your own admin account",
+        );
+      }
+      const activeAdmins = await userModel.countDocuments({
+        role: roles.admin,
+        status: userStatus.active,
+      });
+      if (activeAdmins <= 1) {
+        throw ApiError.unprocessable(
+          "Can't deactivate or demote the last active admin",
+        );
+      }
+    }
+
+    // Pre-check email/phone uniqueness → a clean 409 instead of a raw 500.
+    const clashOr: Record<string, unknown>[] = [];
+    if (input.email !== undefined)
+      clashOr.push({ email: input.email.toLowerCase() });
+    if (input.phone !== undefined) clashOr.push({ phone: input.phone });
+    if (clashOr.length > 0) {
+      const clash = await userModel.exists({
+        _id: { $ne: id },
+        $or: clashOr,
+      });
+      if (clash) {
+        throw ApiError.conflict(
+          "A user with this email or phone already exists",
+        );
+      }
+    }
+
     const update: Record<string, unknown> = {};
     if (input.name !== undefined) update.name = input.name;
     if (input.phone !== undefined) update.phone = input.phone;
@@ -286,6 +341,74 @@ export const authService = {
       .findByIdAndUpdate(id, { $set: update }, { new: true })
       .lean();
     if (!updated) throw ApiError.notFound("User not found");
+
+    // A password change or deactivation must invalidate existing sessions.
+    if (update.passwordHash || deactivating) {
+      await sessionService.revokeAllForUser(id);
+    }
     return toDto<User>(updated);
+  },
+
+  /**
+   * Remove a worker/staff user (offboarding). If they are referenced by jobs,
+   * assignments, attendance, or reviews they are DEACTIVATED (status inactive)
+   * to preserve history; an unreferenced account is hard-deleted. Their
+   * sessions are revoked either way. Guards against removing yourself or the
+   * last remaining active admin.
+   */
+  async removeUser(
+    id: string,
+    actor: SessionUser,
+  ): Promise<{ deleted: boolean; deactivated: boolean }> {
+    await dbConnect();
+    if (id === actor.id) {
+      throw ApiError.badRequest("You can't delete your own account");
+    }
+
+    const target = await userModel.findById(id);
+    if (!target) throw ApiError.notFound("User not found");
+
+    // Only guard when the target is itself an active admin (removing an already
+    // inactive admin doesn't reduce the active-admin count).
+    if (target.role === roles.admin && target.status === userStatus.active) {
+      const activeAdmins = await userModel.countDocuments({
+        role: roles.admin,
+        status: userStatus.active,
+      });
+      if (activeAdmins <= 1) {
+        throw ApiError.unprocessable("Can't remove the last active admin");
+      }
+    }
+
+    // Referenced anywhere that would leave a dangling required ref → keep the
+    // record and deactivate instead of hard-deleting.
+    const referenced = Boolean(
+      (await jobModel.exists({ assignedTechnicians: id })) ||
+        (await jobModel.exists({ createdBy: id })) ||
+        (await jobModel.exists({ "statusHistory.by": id })) ||
+        (await jobAssignmentModel.exists({ technician: id })) ||
+        (await jobAssignmentModel.exists({ assignedBy: id })) ||
+        (await attendanceModel.exists({ userId: id })) ||
+        (await reviewModel.exists({ technicianId: id })) ||
+        (await reviewModel.exists({ collectedBy: id })),
+    );
+
+    if (referenced) {
+      target.status = userStatus.inactive;
+      await target.save();
+    } else {
+      await target.deleteOne();
+    }
+    await sessionService.revokeAllForUser(id);
+
+    await recordAudit({
+      actor: actor.id,
+      actorName: actor.name,
+      action: referenced ? "user.deactivate" : "user.delete",
+      entityType: "user",
+      entityId: id,
+    });
+
+    return { deleted: !referenced, deactivated: referenced };
   },
 };

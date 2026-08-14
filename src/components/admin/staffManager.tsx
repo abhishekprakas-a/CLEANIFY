@@ -6,18 +6,32 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/hooks/useToast";
 import { createUserSchema, type CreateUserInput } from "@/schemas/authSchema";
 import { allRoles, routes } from "@/constants";
 import type { User } from "@/types";
 
+type EditValues = {
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  password?: string;
+};
+
 const fieldClass = "h-10 rounded-lg border border-slate-300 px-3 text-sm";
 
 export function StaffManager() {
   const toast = useToast();
+  const { confirm } = useDialog();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState<User | null>(null);
+
+  const editForm = useForm<EditValues>();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -58,6 +72,60 @@ export function StaffManager() {
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Update failed");
+    }
+  }
+
+  function openEdit(u: User) {
+    setEditing(u);
+    editForm.reset({
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      password: "",
+    });
+  }
+
+  async function onEditSubmit(values: EditValues) {
+    if (!editing) return;
+    const payload: Record<string, unknown> = {
+      name: values.name,
+      email: values.email,
+      phone: values.phone,
+      role: values.role,
+    };
+    if (values.password) payload.password = values.password;
+    try {
+      await api.patch<User>(`${routes.api.users}/${editing.id}`, payload);
+      toast.success("Worker updated");
+      setEditing(null);
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Update failed");
+    }
+  }
+
+  async function removeUser(u: User) {
+    const ok = await confirm({
+      title: `Delete ${u.name}`,
+      message:
+        "If this worker has jobs or history they'll be deactivated (kept for records) instead of deleted. Continue?",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      const res = await api.delete<{ deleted: boolean; deactivated: boolean }>(
+        `${routes.api.users}/${u.id}`,
+      );
+      toast.success(
+        res.deactivated
+          ? `${u.name} deactivated (has history)`
+          : `${u.name} deleted`,
+      );
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
     }
   }
 
@@ -143,12 +211,26 @@ export function StaffManager() {
                     </span>
                   </td>
                   <td className="py-2 text-right">
-                    <button
-                      onClick={() => toggleStatus(u)}
-                      className="text-sm font-medium text-brand-600 hover:text-brand-700"
-                    >
-                      {u.status === "active" ? "Deactivate" : "Activate"}
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => openEdit(u)}
+                        className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => toggleStatus(u)}
+                        className="text-sm font-medium text-slate-600 hover:text-slate-800"
+                      >
+                        {u.status === "active" ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => removeUser(u)}
+                        className="text-sm font-medium text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -156,6 +238,52 @@ export function StaffManager() {
           </tbody>
         </table>
       </Card>
+
+      {editing && (
+        <Modal title={`Edit ${editing.name}`} onClose={() => setEditing(null)}>
+          <form
+            onSubmit={editForm.handleSubmit(onEditSubmit)}
+            className="space-y-3"
+          >
+            <Input label="Name" {...editForm.register("name")} />
+            <Input label="Email" type="email" {...editForm.register("email")} />
+            <Input label="Phone" {...editForm.register("phone")} />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-slate-700">Role</label>
+              <select className={fieldClass} {...editForm.register("role")}>
+                {allRoles.map((r) => (
+                  <option key={r} value={r} className="capitalize">
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Input
+              label="New password (optional)"
+              type="password"
+              placeholder="Leave blank to keep current"
+              {...editForm.register("password")}
+            />
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setEditing(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={editForm.formState.isSubmitting}
+              >
+                Save
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

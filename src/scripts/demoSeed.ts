@@ -121,8 +121,8 @@ async function run() {
   console.log("Creating users…");
   const admin = await upsertUser(
     "Super Admin",
-    process.env.SEED_ADMIN_EMAIL || "admin@watertank.local",
-    "9999999999",
+    process.env.SEED_ADMIN_EMAIL || "cleanifycleaningservice88@gmail.com",
+    "8848483892",
     roles.admin,
     ADMIN_PASSWORD,
   );
@@ -393,7 +393,7 @@ async function run() {
   console.log("\n✅ Demo data seeded.\n");
   console.log("Login credentials:");
   console.log(
-    `  ADMIN       ${process.env.SEED_ADMIN_EMAIL || "admin@watertank.local"} / ${ADMIN_PASSWORD}`,
+    `  ADMIN       ${process.env.SEED_ADMIN_EMAIL || "cleanifycleaningservice88@gmail.com"} / ${ADMIN_PASSWORD}`,
   );
   console.log(`  CALLING STAFF staff@watertank.local / ${ADMIN_PASSWORD}`);
   for (const [name, email] of techDefs) {

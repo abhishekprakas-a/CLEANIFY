@@ -19,6 +19,8 @@ export interface JobDocument {
   workName?: string;
   tanks: TankEntryDocument[];
   totalCharge?: number;
+  googleMapLocation?: string;
+  landmark?: string;
   scheduledDate?: Date;
   scheduledTime?: string; // HH:mm
   scheduledSlot?: string; // legacy morning/afternoon/evening
@@ -62,6 +64,8 @@ const jobSchema = new Schema<JobDocument>(
     },
     serviceType: { type: String, default: "waterTank" },
     workName: { type: String, trim: true },
+    googleMapLocation: { type: String, trim: true },
+    landmark: { type: String, trim: true },
     tanks: { type: [tankEntrySchema], default: [] },
     totalCharge: { type: Number, min: 0 },
     scheduledDate: { type: Date },

@@ -12,9 +12,17 @@ interface Params {
 
 export async function PATCH(req: NextRequest, { params }: Params) {
   return handleRoute(async () => {
-    await requireRole([roles.admin]);
+    const actor = await requireRole([roles.admin]);
     const input = updateUserSchema.parse(await req.json());
-    const user = await authService.updateUser(params.id, input);
+    const user = await authService.updateUser(params.id, input, actor);
     return ok(user);
+  });
+}
+
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  return handleRoute(async () => {
+    const actor = await requireRole([roles.admin]);
+    const result = await authService.removeUser(params.id, actor);
+    return ok(result);
   });
 }

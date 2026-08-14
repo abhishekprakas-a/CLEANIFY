@@ -19,7 +19,7 @@ export default async function TechnicianLayout({
 }) {
   const user = await getSessionUser();
   if (!user) redirect(routes.login);
-  if (user.role !== roles.technician) redirect(routes.admin.dashboard);
+  if (user.role !== roles.technician) redirect(routes.unauthorized);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">

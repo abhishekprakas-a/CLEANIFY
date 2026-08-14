@@ -55,9 +55,9 @@ async function seedRoles() {
 async function seedAdmin() {
   const name = process.env.SEED_ADMIN_NAME || "Super Admin";
   const email = (
-    process.env.SEED_ADMIN_EMAIL || "admin@watertank.local"
+    process.env.SEED_ADMIN_EMAIL || "cleanifycleaningservice88@gmail.com"
   ).toLowerCase();
-  const phone = process.env.SEED_ADMIN_PHONE || "9999999999";
+  const phone = process.env.SEED_ADMIN_PHONE || "8848483892";
   const password = process.env.SEED_ADMIN_PASSWORD || "ChangeMe@123";
   const passwordHash = await hashPassword(password);
 

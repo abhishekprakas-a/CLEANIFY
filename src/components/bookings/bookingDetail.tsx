@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/hooks/useApi";
+import { toMapHref } from "@/lib/mapLink";
 import { routes, serviceConfig, type ServiceType } from "@/constants";
 import type { Booking } from "@/types";
 
@@ -102,6 +103,21 @@ export function BookingDetail({ id }: { id: string }) {
           <p className="mt-1 whitespace-pre-line text-sm text-slate-500">
             {c.address}
           </p>
+        )}
+        {booking.landmark && (
+          <p className="mt-1 text-sm text-slate-600">
+            📍 Landmark: {booking.landmark}
+          </p>
+        )}
+        {toMapHref(booking.googleMapLocation) && (
+          <a
+            href={toMapHref(booking.googleMapLocation) as string}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-sm font-medium text-brand-600 hover:text-brand-700"
+          >
+            📍 Open in Maps
+          </a>
         )}
       </Card>
 

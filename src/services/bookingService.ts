@@ -3,8 +3,8 @@ import { ApiError } from "@/lib/apiError";
 import { toDto, toDtoList } from "@/lib/serialize";
 import { buildMeta } from "@/lib/pagination";
 import { escapeRegex } from "@/lib/sanitize";
-import { bookingStatus } from "@/constants";
-import { bookingModel, customerModel } from "@/models";
+import { bookingStatus, terminalJobStatuses } from "@/constants";
+import { bookingModel, customerModel, jobModel } from "@/models";
 import { jobService } from "./jobService";
 import type {
   CancelBookingInput,
@@ -131,6 +131,24 @@ export const bookingService = {
     if (input.totalCharge != null) booking.totalCharge = input.totalCharge;
     if (input.scheduledTime === "") booking.scheduledTime = undefined;
     await booking.save();
+
+    // Keep the linked (non-terminal) job in sync with the booking's details, so
+    // an edit to the booking reaches the assigned worker.
+    const jobPatch: Record<string, unknown> = {};
+    if (input.workName !== undefined) jobPatch.workName = input.workName;
+    if (input.serviceType !== undefined) jobPatch.serviceType = input.serviceType;
+    if (input.tanks !== undefined) jobPatch.tanks = input.tanks;
+    if (input.totalCharge !== undefined) jobPatch.totalCharge = input.totalCharge;
+    if (input.googleMapLocation !== undefined)
+      jobPatch.googleMapLocation = input.googleMapLocation;
+    if (input.landmark !== undefined) jobPatch.landmark = input.landmark;
+    if (Object.keys(jobPatch).length > 0) {
+      await jobModel.updateOne(
+        { booking: booking._id, status: { $nin: terminalJobStatuses } },
+        { $set: jobPatch },
+      );
+    }
+
     return toDto<Booking>(booking.toObject());
   },
 

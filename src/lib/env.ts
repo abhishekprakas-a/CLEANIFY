@@ -48,7 +48,10 @@ export const env = {
   // Web Push (VAPID). Optional — push is disabled when unset.
   vapidPublicKey: optional("NEXT_PUBLIC_VAPID_PUBLIC_KEY"),
   vapidPrivateKey: optional("VAPID_PRIVATE_KEY"),
-  vapidSubject: optional("VAPID_SUBJECT", "mailto:admin@watertank.local"),
+  vapidSubject: optional(
+    "VAPID_SUBJECT",
+    "mailto:cleanifycleaningservice88@gmail.com",
+  ),
 
   // Object storage for before/after job photos (AWS S3, or any S3-compatible
   // provider such as MinIO). For AWS S3 leave S3_ENDPOINT empty — the SDK

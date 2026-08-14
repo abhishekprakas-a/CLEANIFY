@@ -124,6 +124,8 @@ export interface Booking {
   workName?: string;
   tanks: TankEntry[];
   totalCharge?: number;
+  googleMapLocation?: string;
+  landmark?: string;
   scheduledDate: string;
   scheduledTime?: string;
   specialInstructions?: string;
@@ -160,6 +162,8 @@ export interface Job {
   workName?: string;
   tanks: TankEntry[];
   totalCharge?: number;
+  googleMapLocation?: string;
+  landmark?: string;
   scheduledDate?: string;
   scheduledTime?: string;
   scheduledSlot?: Slot;

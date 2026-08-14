@@ -72,6 +72,8 @@ export function BookingForm({
           serviceType: booking.serviceType ?? "waterTank",
           workName: booking.workName ?? "",
           totalCharge: booking.totalCharge as never,
+          googleMapLocation: booking.googleMapLocation ?? "",
+          landmark: booking.landmark ?? "",
           tanks: booking.tanks as TankEntry[],
           scheduledDate: toDateInput(booking.scheduledDate) as never,
           scheduledTime: booking.scheduledTime ?? "",
@@ -276,6 +278,18 @@ export function BookingForm({
         placeholder="Total charge for this booking"
         error={errors.totalCharge?.message as string | undefined}
         {...register("totalCharge")}
+      />
+
+      <Input
+        label="Google Maps link (optional)"
+        placeholder="Paste the location link so the worker can navigate"
+        error={errors.googleMapLocation?.message as string | undefined}
+        {...register("googleMapLocation")}
+      />
+      <Input
+        label="Landmark (optional)"
+        placeholder="e.g. behind the temple, blue gate"
+        {...register("landmark")}
       />
 
       <div className="grid grid-cols-2 gap-4">

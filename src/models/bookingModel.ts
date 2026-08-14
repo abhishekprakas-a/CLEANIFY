@@ -16,6 +16,8 @@ export interface BookingDocument {
   workName?: string;
   tanks: TankEntryDocument[];
   totalCharge?: number;
+  googleMapLocation?: string;
+  landmark?: string;
   scheduledDate: Date;
   scheduledTime?: string; // HH:mm
   specialInstructions?: string;
@@ -47,6 +49,8 @@ const bookingSchema = new Schema<BookingDocument>(
     },
     serviceType: { type: String, default: "waterTank" },
     workName: { type: String, trim: true },
+    googleMapLocation: { type: String, trim: true },
+    landmark: { type: String, trim: true },
     tanks: {
       type: [tankEntrySchema],
       required: true,

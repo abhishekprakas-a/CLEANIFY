@@ -169,6 +169,8 @@ export const jobService = {
       customer: booking.customerId,
       serviceType: booking.serviceType,
       workName: booking.workName,
+      googleMapLocation: booking.googleMapLocation,
+      landmark: booking.landmark,
       tanks: booking.tanks,
       totalCharge: booking.totalCharge,
       scheduledDate: input.scheduledDate,
@@ -215,6 +217,10 @@ export const jobService = {
       job.serviceType = input.serviceType as never;
     }
     if (input.totalCharge !== undefined) job.totalCharge = input.totalCharge;
+    if (input.googleMapLocation !== undefined) {
+      job.googleMapLocation = input.googleMapLocation;
+    }
+    if (input.landmark !== undefined) job.landmark = input.landmark;
     if (input.tanks !== undefined) job.tanks = input.tanks as never;
     await job.save();
 
