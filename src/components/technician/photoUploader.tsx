@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
+import { useToast } from "@/hooks/useToast";
 import { compressImage } from "@/lib/image/compress";
 import { putWithProgress, withRetry } from "@/lib/image/upload";
 import type { GeoPoint, Photo } from "@/types";
@@ -53,6 +55,8 @@ export function PhotoUploader({
   disabled?: boolean;
   onCountChange?: (count: number) => void;
 }) {
+  const { confirm } = useDialog();
+  const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const [serverPhotos, setServerPhotos] = useState<Photo[]>([]);
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -82,18 +86,26 @@ export function PhotoUploader({
 
   const deletePhoto = useCallback(
     async (photoId: string) => {
-      if (!confirm("Delete this photo?")) return;
+      const ok = await confirm({
+        title: "Delete photo",
+        message: "Remove this photo? This can't be undone.",
+        confirmLabel: "Delete",
+        danger: true,
+      });
+      if (!ok) return;
       setDeletingId(photoId);
       try {
         await api.delete(`/api/photos/${photoId}`);
         await reload();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "Could not delete photo");
+        toast.error(
+          err instanceof Error ? err.message : "Could not delete photo",
+        );
       } finally {
         setDeletingId(null);
       }
     },
-    [reload],
+    [reload, confirm, toast],
   );
 
   const process = useCallback(

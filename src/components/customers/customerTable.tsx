@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
+import { useToast } from "@/hooks/useToast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { routes } from "@/constants";
 import type { Customer, PaginationMeta } from "@/types";
@@ -12,6 +14,8 @@ import type { Customer, PaginationMeta } from "@/types";
 type StatusFilter = "all" | "active" | "inactive";
 
 export function CustomerTable() {
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -46,12 +50,18 @@ export function CustomerTable() {
   }, [page, debouncedSearch, status]);
 
   async function onDelete(c: Customer) {
-    if (!confirm(`Delete ${c.customerName}?`)) return;
+    const ok = await confirm({
+      title: "Delete customer",
+      message: `Delete ${c.customerName}? Customers with bookings are deactivated instead.`,
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       const res = await api.delete<{ deactivated: boolean }>(
         `${routes.api.customers}/${c.id}`,
       );
-      alert(
+      toast.success(
         res.deactivated
           ? "Customer has bookings, so it was deactivated instead of deleted."
           : "Customer deleted.",
@@ -62,7 +72,7 @@ export function CustomerTable() {
           : prev.filter((r) => r.id !== c.id),
       );
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Delete failed");
+      toast.error(err instanceof Error ? err.message : "Delete failed");
     }
   }
 

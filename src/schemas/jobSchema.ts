@@ -34,7 +34,7 @@ export const jobIntakeSchema = z
       .enum(allServiceTypes as [string, ...string[]])
       .default("waterTank"),
     workName: z.string().trim().optional(),
-    totalCharge: z.coerce.number().min(0).optional(),
+    totalCharge: z.coerce.number().min(0).max(10_000_000).optional(),
     tanks: z.array(tankEntrySchema).min(1, "Add at least one item"),
     scheduledDate: z.coerce.date(),
     scheduledTime: timeSchema,
@@ -50,6 +50,14 @@ export const jobIntakeSchema = z
       path: ["customer"],
     },
   );
+
+/** Edit a job's details (not schedule/crew — those have dedicated endpoints). */
+export const updateJobSchema = z.object({
+  workName: z.string().trim().optional(),
+  serviceType: z.enum(allServiceTypes as [string, ...string[]]).optional(),
+  totalCharge: z.coerce.number().min(0).max(10_000_000).optional(),
+  tanks: z.array(tankEntrySchema).min(1, "Add at least one item").optional(),
+});
 
 /** Set/replace the job's date & time → moves a pending job to `scheduled`. */
 export const scheduleJobSchema = z.object({
@@ -107,6 +115,7 @@ export const availabilityQuerySchema = z.object({
 
 export type CreateJobInput = z.infer<typeof createJobSchema>;
 export type JobIntakeInput = z.infer<typeof jobIntakeSchema>;
+export type UpdateJobInput = z.infer<typeof updateJobSchema>;
 export type ScheduleJobInput = z.infer<typeof scheduleJobSchema>;
 export type AssignJobInput = z.infer<typeof assignJobSchema>;
 export type ReassignJobInput = z.infer<typeof reassignJobSchema>;

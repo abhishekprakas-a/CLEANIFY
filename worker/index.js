@@ -10,16 +10,16 @@ self.addEventListener("push", (event) => {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
     payload = {
-      title: "Water Tank Cleaning",
+      title: "Cleanify",
       body: event.data && event.data.text(),
     };
   }
 
-  const title = payload.title || "Water Tank Cleaning";
+  const title = payload.title || "Cleanify";
   const options = {
     body: payload.body || "",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: "/brand/cleanify-icon.svg",
+    badge: "/brand/cleanify-icon.svg",
     data: { url: payload.url || "/technician" },
     tag: payload.tag,
   };

@@ -20,6 +20,7 @@ import {
   jobModel,
   userModel,
 } from "@/models";
+import { notificationService } from "./notificationService";
 import type {
   AssignJobInput,
   ReassignJobInput,
@@ -106,6 +107,31 @@ async function findScheduledJobs(
     .lean();
 
   return docs.map((d) => toScheduledJob(d as Record<string, unknown>));
+}
+
+/**
+ * Best-effort push to each assigned technician ("New job assigned"). Never
+ * throws — a failed/disabled push must not fail the assignment itself.
+ */
+async function notifyAssignedTechnicians(
+  job: { _id: unknown; jobCode: string; scheduledDate?: Date | null },
+  technicianIds: string[],
+): Promise<void> {
+  const when = job.scheduledDate
+    ? new Date(job.scheduledDate).toLocaleDateString()
+    : "soon";
+  await Promise.all(
+    technicianIds.map((id) =>
+      notificationService
+        .notifyUser(String(id), {
+          title: "New job assigned",
+          body: `${job.jobCode} — scheduled ${when}. Tap to view.`,
+          url: `/technician/jobs/${String(job._id)}`,
+          tag: `job-${String(job._id)}`,
+        })
+        .catch(() => 0),
+    ),
+  );
 }
 
 // --- service ---------------------------------------------------------------
@@ -274,6 +300,7 @@ export const schedulingService = {
       bookingStatus: bookingStatus.scheduled,
     });
 
+    await notifyAssignedTechnicians(job, technicianIds);
     return toDto<Job>(job.toObject());
   },
 
@@ -329,7 +356,33 @@ export const schedulingService = {
     } as never);
     await job.save();
 
+    await notifyAssignedTechnicians(job, technicianIds);
     return toDto<Job>(job.toObject());
+  },
+
+  /** Active (non-terminal) job count per active technician — the crew "load". */
+  async workload(): Promise<
+    { id: string; name: string; activeJobs: number }[]
+  > {
+    await dbConnect();
+    const [techs, counts] = await Promise.all([
+      userModel
+        .find({ role: roles.technician, status: userStatus.active })
+        .select("name")
+        .sort({ name: 1 })
+        .lean(),
+      jobModel.aggregate<{ _id: unknown; count: number }>([
+        { $match: { status: { $nin: terminalJobStatuses } } },
+        { $unwind: "$assignedTechnicians" },
+        { $group: { _id: "$assignedTechnicians", count: { $sum: 1 } } },
+      ]),
+    ]);
+    const byId = new Map(counts.map((c) => [String(c._id), c.count]));
+    return techs.map((t) => ({
+      id: String(t._id),
+      name: t.name,
+      activeJobs: byId.get(String(t._id)) ?? 0,
+    }));
   },
 
   /** Change a job's date/time, keeping the technician. */

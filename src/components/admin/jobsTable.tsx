@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/hooks/useToast";
 import { allJobStatuses, routes, terminalJobStatuses } from "@/constants";
@@ -34,6 +35,7 @@ function fmt(iso?: string): string {
 
 export function JobsTable() {
   const toast = useToast();
+  const { prompt } = useDialog();
   const [status, setStatus] = useState("");
   const [technicianId, setTechnicianId] = useState("");
   const [page, setPage] = useState(1);
@@ -71,8 +73,21 @@ export function JobsTable() {
   useEffect(load, [load]);
 
   async function cancelJob(job: JobRow) {
-    const reason = prompt("Cancellation reason:");
-    if (!reason) return;
+    const res = await prompt({
+      title: `Cancel ${job.jobCode}`,
+      fields: [
+        {
+          name: "reason",
+          label: "Cancellation reason",
+          required: true,
+          placeholder: "Why is this job being cancelled?",
+        },
+      ],
+      confirmLabel: "Cancel job",
+      danger: true,
+    });
+    if (!res) return;
+    const reason = res.reason;
     try {
       await api.post(`${routes.api.jobs}/${job.id}/cancel`, { reason });
       toast.success(`${job.jobCode} cancelled`);
@@ -167,13 +182,21 @@ export function JobsTable() {
                     <Badge status={j.status} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => cancelJob(j)}
-                      disabled={terminalJobStatuses.includes(j.status)}
-                      className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
-                    >
-                      Cancel
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <Link
+                        href={`${routes.admin.jobs}/${j.id}/edit`}
+                        className="text-sm font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => cancelJob(j)}
+                        disabled={terminalJobStatuses.includes(j.status)}
+                        className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-40"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

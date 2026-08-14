@@ -50,6 +50,7 @@ export const routes = {
     jobsIntake: "/api/jobs/intake",
     schedule: "/api/schedule",
     availability: "/api/schedule/availability",
+    workload: "/api/schedule/workload",
     technicians: "/api/users?role=technician",
     photos: "/api/photos",
     attendance: "/api/attendance",

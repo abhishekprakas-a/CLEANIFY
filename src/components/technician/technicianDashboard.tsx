@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,12 +28,25 @@ export function TechnicianDashboard() {
   const { jobs, loading, fromCache } = useAssignedJobs();
   const [summary, setSummary] = useState<TechnicianDashboardData | null>(null);
 
-  useEffect(() => {
+  const loadSummary = useCallback(() => {
     api
       .get<TechnicianDashboardData>("/api/dashboard/technician")
       .then(setSummary)
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadSummary();
+    // Refresh counts when the worker returns to the app (e.g. after tapping a
+    // "New job assigned" push), so the number of jobs updates without a reload.
+    // visibilitychange alone covers returning to the PWA/tab; adding a separate
+    // window `focus` listener would double-fire the fetch on a single focus.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") loadSummary();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [loadSummary]);
 
   const counts = summary?.counts ?? {
     assignedActive: 0,

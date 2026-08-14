@@ -98,12 +98,10 @@ const nextConfig = {
   serverExternalPackages: ["mongoose"],
   images: {
     formats: ["image/avif", "image/webp"],
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
-    ],
+    // The app serves images via plain <img> (S3 public URLs), not next/image,
+    // so no remote hosts are allowed through the optimizer — this closes the
+    // `/_next/image?url=<any-host>` open-proxy / SSRF / bandwidth-abuse vector.
+    remotePatterns: [],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

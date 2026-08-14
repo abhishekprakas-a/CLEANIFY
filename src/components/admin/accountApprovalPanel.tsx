@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
+import { useToast } from "@/hooks/useToast";
 import type { User } from "@/types";
 
 export function AccountApprovalPanel() {
+  const { confirm } = useDialog();
+  const toast = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -27,17 +31,22 @@ export function AccountApprovalPanel() {
   }, [load]);
 
   async function decide(user: User, status: "active" | "inactive") {
-    if (
-      status === "inactive" &&
-      !confirm(`Reject ${user.name}'s account request?`)
-    )
-      return;
+    if (status === "inactive") {
+      const ok = await confirm({
+        title: "Reject account",
+        message: `Reject ${user.name}'s account request? They won't be able to sign in.`,
+        confirmLabel: "Reject",
+        danger: true,
+      });
+      if (!ok) return;
+    }
     setBusy(user.id);
     try {
       await api.patch(`/api/users/${user.id}`, { status });
+      toast.success(status === "active" ? "Account approved" : "Account rejected");
       await load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Action failed");
+      toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
       setBusy(null);
     }

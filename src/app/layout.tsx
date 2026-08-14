@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { env } from "@/lib/env";
 import { Toaster } from "@/components/ui/toaster";
+import { DialogProvider } from "@/components/ui/dialog";
 import { InstallPrompt } from "@/components/pwa/installPrompt";
 import "./globals.css";
 
@@ -32,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <DialogProvider>{children}</DialogProvider>
         <Toaster />
         <InstallPrompt />
       </body>

@@ -12,6 +12,7 @@ import {
   jobTransitions,
   photoKind,
   roles,
+  terminalJobStatuses,
   type JobStatus,
 } from "@/constants";
 import {
@@ -25,6 +26,7 @@ import type {
   CancelJobInput,
   CreateJobInput,
   TransitionJobInput,
+  UpdateJobInput,
 } from "@/schemas/jobSchema";
 import type {
   Job,
@@ -192,6 +194,37 @@ export const jobService = {
       });
     }
 
+    return toDto<Job>(job.toObject());
+  },
+
+  /** Edit a job's details (work name, service, line items, total, notes). */
+  async update(
+    id: string,
+    input: UpdateJobInput,
+    user: SessionUser,
+  ): Promise<Job> {
+    await dbConnect();
+    const job = await jobModel.findById(id);
+    if (!job) throw ApiError.notFound("Job not found");
+    if (terminalJobStatuses.includes(job.status as JobStatus)) {
+      throw ApiError.conflict(`A ${job.status} job can no longer be edited`);
+    }
+
+    if (input.workName !== undefined) job.workName = input.workName;
+    if (input.serviceType !== undefined) {
+      job.serviceType = input.serviceType as never;
+    }
+    if (input.totalCharge !== undefined) job.totalCharge = input.totalCharge;
+    if (input.tanks !== undefined) job.tanks = input.tanks as never;
+    await job.save();
+
+    await recordAudit({
+      actor: user.id,
+      actorName: user.name,
+      action: "job.update",
+      entityType: "job",
+      entityId: id,
+    });
     return toDto<Job>(job.toObject());
   },
 

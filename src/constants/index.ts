@@ -15,5 +15,5 @@ export const pagination = {
 } as const;
 
 export const appConfig = {
-  jobCodePrefix: "WTC",
+  jobCodePrefix: "CLEANIFY",
 } as const;

@@ -70,6 +70,26 @@ export async function apiList<T>(
   return { items: body.data, meta: body.meta };
 }
 
+/**
+ * Wipe client-side caches that hold the signed-in user's data, so a different
+ * user logging in on the same device/PWA can never be served the previous
+ * user's cached jobs/attendance/identity.
+ */
+async function clearUserCaches(): Promise<void> {
+  try {
+    if (typeof caches !== "undefined") {
+      await Promise.all([caches.delete("api-data"), caches.delete("pages")]);
+    }
+  } catch {
+    /* cache API unavailable — ignore */
+  }
+  try {
+    localStorage.removeItem("wtcs.assignedJobs");
+  } catch {
+    /* ignore */
+  }
+}
+
 export const api = {
   get: <T>(url: string) => apiFetch<T>(url),
   list: <T>(url: string) => apiList<T>(url),
@@ -81,5 +101,11 @@ export const api = {
   patch: <T>(url: string, data: unknown) =>
     apiFetch<T>(url, { method: "PATCH", body: JSON.stringify(data) }),
   delete: <T>(url: string) => apiFetch<T>(url, { method: "DELETE" }),
-  logout: () => apiFetch(routes.api.auth.logout, { method: "POST" }),
+  logout: async () => {
+    try {
+      await apiFetch(routes.api.auth.logout, { method: "POST" });
+    } finally {
+      await clearUserCaches();
+    }
+  },
 };

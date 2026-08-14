@@ -5,6 +5,7 @@ import { buildMeta } from "@/lib/pagination";
 import { escapeRegex } from "@/lib/sanitize";
 import { bookingStatus } from "@/constants";
 import { bookingModel, customerModel } from "@/models";
+import { jobService } from "./jobService";
 import type {
   CancelBookingInput,
   CreateBookingInput,
@@ -93,7 +94,26 @@ export const bookingService = {
       statusHistory: [statusEvent(bookingStatus.pending, user, "Created")],
       createdBy: user.id,
     });
-    return toDto<Booking>(created.toObject());
+
+    // Every booking flows into a Job (the field-execution record) so it appears
+    // in Jobs and can be scheduled/assigned. Best-effort: the booking still
+    // stands if job creation hiccups (the admin can create it from Jobs later).
+    try {
+      await jobService.createFromBooking(
+        {
+          booking: String(created._id),
+          scheduledDate: created.scheduledDate,
+          scheduledTime: created.scheduledTime,
+        },
+        user,
+      );
+    } catch {
+      /* keep the booking; job can be created later */
+    }
+
+    // Re-read so the returned booking reflects the status the job set (scheduled).
+    const fresh = await bookingModel.findById(created._id).lean();
+    return toDto<Booking>(fresh ?? created.toObject());
   },
 
   /** Edit booking details (not a status transition). */

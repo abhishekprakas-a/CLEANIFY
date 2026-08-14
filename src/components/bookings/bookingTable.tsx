@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
+import { useToast } from "@/hooks/useToast";
 import { useDebounce } from "@/hooks/useDebounce";
 import { allBookingStatuses, routes, serviceLabel } from "@/constants";
 import type { Booking, PaginationMeta } from "@/types";
@@ -47,6 +49,8 @@ function fmtDate(iso: string): string {
 const fieldClass = "h-10 rounded-lg border border-slate-300 px-3 text-sm";
 
 export function BookingTable() {
+  const { confirm, prompt } = useDialog();
+  const toast = useToast();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [from, setFrom] = useState("");
@@ -91,50 +95,83 @@ export function BookingTable() {
   }, [page, debouncedSearch, status, from, to]);
 
   async function onReschedule(row: BookingRow) {
-    const date = prompt("New date (YYYY-MM-DD):");
-    if (!date) return;
-    const time = prompt("New time (HH:mm), optional:") ?? "";
+    const res = await prompt({
+      title: "Reschedule booking",
+      fields: [
+        {
+          name: "date",
+          label: "New date",
+          type: "date",
+          required: true,
+          defaultValue: row.scheduledDate?.slice(0, 10),
+        },
+        {
+          name: "time",
+          label: "New time (optional)",
+          type: "time",
+          defaultValue: row.scheduledTime ?? "",
+        },
+      ],
+      confirmLabel: "Reschedule",
+    });
+    if (!res) return;
     try {
       await api.post(`${routes.api.bookings}/${row.id}/reschedule`, {
-        scheduledDate: date,
-        scheduledTime: time,
+        scheduledDate: res.date,
+        scheduledTime: res.time,
       });
+      toast.success("Booking rescheduled");
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Reschedule failed");
+      toast.error(err instanceof Error ? err.message : "Reschedule failed");
     }
   }
 
   async function onCancel(row: BookingRow) {
-    const reason = prompt("Cancellation reason:");
-    if (!reason) return;
+    const res = await prompt({
+      title: "Cancel booking",
+      fields: [
+        {
+          name: "reason",
+          label: "Cancellation reason",
+          required: true,
+          placeholder: "Why is this booking being cancelled?",
+        },
+      ],
+      confirmLabel: "Cancel booking",
+      danger: true,
+    });
+    if (!res) return;
     try {
-      await api.post(`${routes.api.bookings}/${row.id}/cancel`, { reason });
+      await api.post(`${routes.api.bookings}/${row.id}/cancel`, {
+        reason: res.reason,
+      });
+      toast.success("Booking cancelled");
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Cancel failed");
+      toast.error(err instanceof Error ? err.message : "Cancel failed");
     }
   }
 
   // Turn a booking into a schedulable job, then assign it on the Schedule.
   async function onCreateJob(row: BookingRow) {
-    if (
-      !confirm(
+    const ok = await confirm({
+      title: "Create job",
+      message:
         "Create a job for this booking? You can then assign a technician on the Schedule.",
-      )
-    ) {
-      return;
-    }
+      confirmLabel: "Create job",
+    });
+    if (!ok) return;
     try {
       await api.post(routes.api.jobs, {
         booking: row.id,
         scheduledDate: row.scheduledDate,
         scheduledTime: row.scheduledTime,
       });
-      alert("Job created. Open the Schedule to assign a technician.");
+      toast.success("Job created — open the Schedule to assign a technician.");
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not create job");
+      toast.error(err instanceof Error ? err.message : "Could not create job");
     }
   }
 

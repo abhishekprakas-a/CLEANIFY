@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
+import { useToast } from "@/hooks/useToast";
 import { calendarView, routes, type CalendarView } from "@/constants";
 import type { DaySchedule, ScheduledJob, User } from "@/types";
 
@@ -40,6 +42,8 @@ function monthLabel(s: string): string {
 // --- component -------------------------------------------------------------
 
 export function SchedulingCalendar() {
+  const { prompt } = useDialog();
+  const toast = useToast();
   const [view, setView] = useState<CalendarView>(calendarView.monthly);
   const [anchor, setAnchor] = useState<string>(key(new Date()));
   const [days, setDays] = useState<DaySchedule[]>([]);
@@ -83,30 +87,46 @@ export function SchedulingCalendar() {
       ? current.filter((id) => id !== technicianId)
       : [...current, technicianId];
     if (technicianIds.length === 0) {
-      alert("A job needs at least one technician. Reschedule to unassign.");
+      toast.error("A job needs at least one technician. Reschedule to unassign.");
       return;
     }
     try {
       await api.patch(`${routes.api.jobs}/${job.id}/assign`, { technicianIds });
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Assignment failed");
+      toast.error(err instanceof Error ? err.message : "Assignment failed");
     }
   }
 
   async function reschedule(job: ScheduledJob) {
-    const date = prompt("New date (YYYY-MM-DD):", anchor);
-    if (!date) return;
-    const time =
-      prompt("New time (HH:mm), optional:", job.scheduledTime ?? "") ?? "";
+    const res = await prompt({
+      title: `Reschedule ${job.jobCode}`,
+      fields: [
+        {
+          name: "date",
+          label: "New date",
+          type: "date",
+          required: true,
+          defaultValue: anchor,
+        },
+        {
+          name: "time",
+          label: "New time (optional)",
+          type: "time",
+          defaultValue: job.scheduledTime ?? "",
+        },
+      ],
+      confirmLabel: "Reschedule",
+    });
+    if (!res) return;
     try {
       await api.post(`${routes.api.jobs}/${job.id}/reschedule`, {
-        scheduledDate: date,
-        scheduledTime: time,
+        scheduledDate: res.date,
+        scheduledTime: res.time,
       });
       load();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Reschedule failed");
+      toast.error(err instanceof Error ? err.message : "Reschedule failed");
     }
   }
 

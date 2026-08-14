@@ -62,7 +62,10 @@ const photoSchema = new Schema<PhotoDocument>(
 );
 
 photoSchema.index({ jobId: 1, photoType: 1 });
-photoSchema.index({ approvalStatus: 1 });
+// createdAt powers the admin Job-photos gallery (recent-first). The old
+// approvalStatus index is dropped — photo approval was removed, so nothing
+// queries it and it only added write overhead.
+photoSchema.index({ createdAt: -1 });
 
 export const photoModel: Model<PhotoDocument> =
   (mongoose.models.Photo as Model<PhotoDocument>) ||

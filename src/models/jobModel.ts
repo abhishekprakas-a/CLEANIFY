@@ -95,6 +95,7 @@ jobSchema.index({ assignedTechnicians: 1, scheduledDate: 1 });
 jobSchema.index({ scheduledDate: 1 });
 jobSchema.index({ status: 1 });
 jobSchema.index({ status: 1, completedAt: 1 }); // completion / productivity reports
+jobSchema.index({ createdAt: -1 }); // dashboard 7-day trend + recency sorts
 
 export const jobModel: Model<JobDocument> =
   (mongoose.models.Job as Model<JobDocument>) ||
