@@ -2,12 +2,13 @@ import { dbConnect } from "@/lib/dbConnect";
 import { ApiError } from "@/lib/apiError";
 import { toDto, toDtoList } from "@/lib/serialize";
 import { buildMeta } from "@/lib/pagination";
+import { applyJobTransition } from "@/lib/jobWorkflow";
 import {
   jobStatus,
   satisfactionFromRating,
   satisfactionStatus,
 } from "@/constants";
-import { jobModel, reviewModel } from "@/models";
+import { jobModel, reviewModel, staffRatingModel } from "@/models";
 import type { CreateReviewInput } from "@/schemas/reviewSchema";
 import type {
   ListQuery,
@@ -75,7 +76,72 @@ export const reviewService = {
       source: input.source,
       collectedBy: user.id,
     });
+
+    // Optional internal staff ratings — one per crew member (idempotent upsert).
+    if (input.staffRatings?.length) {
+      await Promise.all(
+        input.staffRatings.map((r) =>
+          staffRatingModel.updateOne(
+            { jobId: job._id, staffUserId: r.staffUserId },
+            {
+              $set: {
+                rating: r.rating,
+                remark: r.remark,
+                ratedBy: user.id,
+                ratedAt: new Date(),
+              },
+            },
+            { upsert: true },
+          ),
+        ),
+      );
+    }
+
+    // Capturing the review closes the job (COMPLETED → CLOSED).
+    if (job.status === jobStatus.completed) {
+      applyJobTransition(job, jobStatus.closed, user.id, "Review captured");
+      await job.save();
+    }
+
     return toDto<Review>(created.toObject());
+  },
+
+  /** Existing staff ratings for a job (to prefill the review form). */
+  async staffRatingsForJob(
+    jobId: string,
+  ): Promise<{ staffUserId: string; rating: number; remark?: string }[]> {
+    await dbConnect();
+    const docs = await staffRatingModel.find({ jobId }).lean();
+    return docs.map((d) => ({
+      staffUserId: String(d.staffUserId),
+      rating: d.rating,
+      remark: d.remark,
+    }));
+  },
+
+  /** Average internal staff rating per technician (for staff profiles/reports). */
+  async staffRatingSummary(): Promise<
+    { staffUserId: string; average: number; count: number }[]
+  > {
+    await dbConnect();
+    const agg = await staffRatingModel.aggregate<{
+      _id: unknown;
+      avg: number;
+      count: number;
+    }>([
+      {
+        $group: {
+          _id: "$staffUserId",
+          avg: { $avg: "$rating" },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    return agg.map((a) => ({
+      staffUserId: String(a._id),
+      average: round1(a.avg ?? 0),
+      count: a.count,
+    }));
   },
 
   /** Aggregate metrics: average, distribution, satisfaction, per-technician. */
@@ -167,7 +233,9 @@ export const reviewService = {
     return jobs.map((job) => {
       const customer = job.customer as { customerName?: string } | undefined;
       const techs =
-        (job.assignedTechnicians as { name?: string }[] | undefined) ?? [];
+        (job.assignedTechnicians as
+          | { _id?: unknown; name?: string }[]
+          | undefined) ?? [];
       return {
         jobId: String(job._id),
         jobCode: job.jobCode,
@@ -177,6 +245,9 @@ export const reviewService = {
             .map((t) => t?.name)
             .filter(Boolean)
             .join(", ") || undefined,
+        technicians: techs
+          .filter((t) => t?._id)
+          .map((t) => ({ id: String(t._id), name: t.name ?? "" })),
         completedAt: job.completedAt
           ? new Date(job.completedAt).toISOString()
           : undefined,

@@ -16,7 +16,7 @@ import {
   serviceConfig,
   type ServiceType,
 } from "@/constants";
-import type { Job } from "@/types";
+import type { Job, Photo } from "@/types";
 
 type PopulatedCustomer = {
   customerName?: string;
@@ -46,8 +46,9 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [beforeCount, setBeforeCount] = useState(0);
-  const [afterCount, setAfterCount] = useState(0);
+  const [machineryPhotos, setMachineryPhotos] = useState<Photo[]>([]);
+  const [uniformPhotos, setUniformPhotos] = useState<Photo[]>([]);
+  const [completionPhotos, setCompletionPhotos] = useState<Photo[]>([]);
   const [notes, setNotes] = useState("");
   const [version, setVersion] = useState(0);
 
@@ -75,6 +76,28 @@ export function JobDetail({ jobId }: { jobId: string }) {
       setVersion((v) => v + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update job");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submit(
+    type: "preWork" | "completion",
+    photoIds: string[],
+    details?: Record<string, unknown>,
+  ) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/api/jobs/${jobId}/submissions`, {
+        type,
+        photoIds,
+        details,
+      });
+      await load();
+      setVersion((v) => v + 1);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not submit");
     } finally {
       setBusy(false);
     }
@@ -211,40 +234,68 @@ export function JobDetail({ jobId }: { jobId: string }) {
         </Card>
       )}
 
-      {(status === jobStatus.reachedSite ||
-        status === jobStatus.beforePhotoPendingApproval) && (
+      {status === jobStatus.reachedSite && (
         <Card>
-          <CardTitle>Step 2 — Before-cleaning photos</CardTitle>
+          <CardTitle>Step 2 — Pre-work check</CardTitle>
           <p className="mb-3 mt-1 text-sm text-slate-500">
-            Capture the {itemNoun} before cleaning, then start the work.
+            Photograph the machinery (in order) and yourself in uniform/mask,
+            then submit for approval. You can start only after it&apos;s approved.
+          </p>
+          <p className="mb-1 text-xs font-medium text-slate-600">
+            Machinery {machineryPhotos.length > 0 ? "✓" : "(required)"}
           </p>
           <PhotoUploader
             jobId={jobId}
-            photoType="before"
-            onCountChange={setBeforeCount}
+            photoType="machinery"
+            label="machinery"
+            onPhotosChange={setMachineryPhotos}
+          />
+          <p className="mb-1 mt-3 text-xs font-medium text-slate-600">
+            Uniform / mask {uniformPhotos.length > 0 ? "✓" : "(required)"}
+          </p>
+          <PhotoUploader
+            jobId={jobId}
+            photoType="uniformMask"
+            label="uniform / mask"
+            onPhotosChange={setUniformPhotos}
           />
           <Button
-            className="mt-3 w-full"
-            disabled={busy || beforeCount < 1}
-            onClick={() => transition(jobStatus.cleaningInProgress)}
+            className="mt-4 w-full"
+            disabled={
+              busy || machineryPhotos.length < 1 || uniformPhotos.length < 1
+            }
+            onClick={() =>
+              submit("preWork", [
+                ...machineryPhotos.map((p) => p.id),
+                ...uniformPhotos.map((p) => p.id),
+              ])
+            }
           >
-            Start cleaning
+            Submit pre-work for approval
           </Button>
         </Card>
       )}
 
-      {(status === jobStatus.cleaningInProgress ||
-        status === jobStatus.afterPhotoPendingApproval) && (
+      {status === jobStatus.preWorkPendingApproval && (
         <Card>
-          <CardTitle>Step 3 — After-cleaning photos &amp; finish</CardTitle>
+          <p className="text-center text-sm font-medium text-amber-700">
+            ⏳ Pre-work submitted — waiting for approval before you can start.
+          </p>
+        </Card>
+      )}
+
+      {status === jobStatus.cleaningInProgress && (
+        <Card>
+          <CardTitle>Step 3 — Completion</CardTitle>
           <p className="mb-3 mt-1 text-sm text-slate-500">
-            Cleaning in progress. Upload after-cleaning photos, then complete the
-            job.
+            Pre-work approved — clean the {itemNoun}. Upload at least 2 completion
+            photos, then submit for approval.
           </p>
           <PhotoUploader
             jobId={jobId}
-            photoType="after"
-            onCountChange={setAfterCount}
+            photoType="completion"
+            label="completion"
+            onPhotosChange={setCompletionPhotos}
           />
           <Textarea
             label="Completion notes (optional)"
@@ -254,19 +305,29 @@ export function JobDetail({ jobId }: { jobId: string }) {
           />
           <Button
             className="mt-3 w-full"
-            disabled={busy || afterCount < 1}
+            disabled={busy || completionPhotos.length < 2}
             onClick={() =>
-              transition(jobStatus.completed, {
-                completionNotes: notes || undefined,
-              })
+              submit(
+                "completion",
+                completionPhotos.map((p) => p.id),
+                notes ? { notes } : undefined,
+              )
             }
           >
-            Complete job
+            Submit completion for approval
           </Button>
         </Card>
       )}
 
-      {status === jobStatus.completed && (
+      {status === jobStatus.completionPendingApproval && (
+        <Card>
+          <p className="text-center text-sm font-medium text-amber-700">
+            ⏳ Completion submitted — waiting for approval.
+          </p>
+        </Card>
+      )}
+
+      {(status === jobStatus.completed || status === jobStatus.closed) && (
         <Card>
           <p className="text-center text-sm font-medium text-green-700">
             ✓ Job completed. Great work!

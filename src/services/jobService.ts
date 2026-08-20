@@ -10,8 +10,8 @@ import {
   jobStatus,
   jobTransitionRoles,
   jobTransitions,
-  photoKind,
   roles,
+  serviceDefaultDurationMins,
   terminalJobStatuses,
   type JobStatus,
 } from "@/constants";
@@ -19,7 +19,6 @@ import {
   attendanceModel,
   bookingModel,
   jobModel,
-  photoModel,
   userModel,
 } from "@/models";
 import type {
@@ -57,7 +56,12 @@ async function generateJobCode(): Promise<string> {
 export const jobService = {
   async list(
     query: ListQuery,
-    filters: { status?: string; technician?: string; date?: string } = {},
+    filters: {
+      status?: string;
+      technician?: string;
+      date?: string;
+      unassigned?: boolean;
+    } = {},
   ): Promise<{ items: Job[]; meta: PaginationMeta }> {
     await dbConnect();
     const filter: Record<string, unknown> = {};
@@ -69,6 +73,11 @@ export const jobService = {
       const end = new Date(start);
       end.setDate(end.getDate() + 1);
       filter.scheduledDate = { $gte: start, $lt: end };
+    }
+    // "Pending scheduling" = non-terminal jobs that still need a crew assigned.
+    if (filters.unassigned) {
+      filter.assignedTechnicians = { $size: 0 };
+      filter.status = { $nin: terminalJobStatuses };
     }
 
     const skip = (query.page - 1) * query.limit;
@@ -175,6 +184,9 @@ export const jobService = {
       totalCharge: booking.totalCharge,
       scheduledDate: input.scheduledDate,
       scheduledTime: input.scheduledTime || undefined,
+      estimatedDurationMins:
+        booking.estimatedDurationMins ??
+        serviceDefaultDurationMins(booking.serviceType),
       status: jobStatus.pending,
       statusHistory: [
         { status: jobStatus.pending, at: new Date(), by: user.id },
@@ -222,6 +234,9 @@ export const jobService = {
     }
     if (input.landmark !== undefined) job.landmark = input.landmark;
     if (input.tanks !== undefined) job.tanks = input.tanks as never;
+    if (input.estimatedDurationMins !== undefined) {
+      job.estimatedDurationMins = input.estimatedDurationMins;
+    }
     await job.save();
 
     await recordAudit({
@@ -276,26 +291,18 @@ export const jobService = {
           );
         }
       }
-      // Starting cleaning requires at least one before photo.
+      // v2 approval gate: technicians cannot start cleaning or complete a job
+      // directly — those happen when an admin/supervisor approves the pre-work
+      // or completion submission. Direct the field app to submit for approval.
       if (next === jobStatus.cleaningInProgress) {
-        const before = await photoModel.countDocuments({
-          jobId: job._id,
-          photoType: photoKind.before,
-        });
-        if (before < 1) {
-          throw ApiError.unprocessable("Upload at least one before photo");
-        }
+        throw ApiError.unprocessable(
+          "Submit the pre-work check for approval before starting",
+        );
       }
-      // Completing the job requires at least one after photo.
       if (next === jobStatus.completed) {
-        const after = await photoModel.countDocuments({
-          jobId: job._id,
-          photoType: photoKind.after,
-        });
-        if (after < 1) {
-          throw ApiError.unprocessable("Upload at least one after photo");
-        }
-        if (input.completionNotes) job.completionNotes = input.completionNotes;
+        throw ApiError.unprocessable(
+          "Submit completion photos for approval before completing",
+        );
       }
     }
 

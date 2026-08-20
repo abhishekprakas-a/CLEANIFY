@@ -21,6 +21,7 @@ export function ReviewForm({ onCreated }: { onCreated: () => void }) {
   const [starRating, setStarRating] = useState(0);
   const [reviewComment, setReviewComment] = useState("");
   const [satisfaction, setSatisfaction] = useState<string>("");
+  const [staffRatings, setStaffRatings] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -33,6 +34,13 @@ export function ReviewForm({ onCreated }: { onCreated: () => void }) {
 
   useEffect(loadJobs, []);
 
+  const selectedJob = jobs.find((j) => j.jobId === jobId);
+
+  function selectJob(id: string) {
+    setJobId(id);
+    setStaffRatings({});
+  }
+
   function pickRating(value: number) {
     setStarRating(value);
     setSatisfaction(satisfactionFromRating(value));
@@ -44,16 +52,21 @@ export function ReviewForm({ onCreated }: { onCreated: () => void }) {
     if (starRating < 1) return setError("Give a star rating");
     setBusy(true);
     try {
+      const ratings = Object.entries(staffRatings)
+        .filter(([, r]) => r > 0)
+        .map(([staffUserId, rating]) => ({ staffUserId, rating }));
       await api.post(routes.api.reviews, {
         jobId,
         starRating,
         reviewComment: reviewComment || undefined,
         satisfactionStatus: satisfaction || undefined,
+        staffRatings: ratings.length ? ratings : undefined,
       });
       setJobId("");
       setStarRating(0);
       setReviewComment("");
       setSatisfaction("");
+      setStaffRatings({});
       loadJobs();
       onCreated();
     } catch (err) {
@@ -67,13 +80,13 @@ export function ReviewForm({ onCreated }: { onCreated: () => void }) {
     <Card>
       <CardTitle>Add a review</CardTitle>
       <p className="mt-1 text-sm text-slate-500">
-        Record customer feedback for a completed job.
+        Record customer feedback and rate the crew. Saving closes the job.
       </p>
 
       <div className="mt-3 space-y-3">
         <select
           value={jobId}
-          onChange={(e) => setJobId(e.target.value)}
+          onChange={(e) => selectJob(e.target.value)}
           className={`${fieldClass} w-full`}
         >
           <option value="">Select a completed job…</option>
@@ -86,9 +99,28 @@ export function ReviewForm({ onCreated }: { onCreated: () => void }) {
         </select>
 
         <div className="flex items-center gap-3">
-          <span className="text-sm text-slate-600">Rating</span>
+          <span className="text-sm text-slate-600">Customer rating</span>
           <StarRating value={starRating} onChange={pickRating} size="lg" />
         </div>
+
+        {selectedJob?.technicians && selectedJob.technicians.length > 0 && (
+          <div className="space-y-2 rounded-lg border border-slate-200 p-3">
+            <p className="text-sm font-medium text-slate-700">
+              Rate the crew (optional, internal)
+            </p>
+            {selectedJob.technicians.map((t) => (
+              <div key={t.id} className="flex items-center justify-between">
+                <span className="text-sm text-slate-600">{t.name}</span>
+                <StarRating
+                  value={staffRatings[t.id] ?? 0}
+                  onChange={(v) =>
+                    setStaffRatings((prev) => ({ ...prev, [t.id]: v }))
+                  }
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {satisfaction && (
           <div className="flex items-center gap-2 text-sm">

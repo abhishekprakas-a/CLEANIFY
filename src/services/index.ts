@@ -10,5 +10,7 @@ export { attendanceService } from "./attendanceService";
 export { photoService } from "./photoService";
 export { reviewService } from "./reviewService";
 export { notificationService } from "./notificationService";
+export { inAppNotificationService } from "./inAppNotificationService";
+export { submissionService } from "./submissionService";
 export { dashboardService } from "./dashboardService";
 export { reportService } from "./reportService";

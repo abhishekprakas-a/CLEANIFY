@@ -1,5 +1,10 @@
 import { dbConnect } from "@/lib/dbConnect";
-import { jobStatus, terminalJobStatuses, userStatus } from "@/constants";
+import {
+  doneJobStatuses,
+  jobStatus,
+  terminalJobStatuses,
+  userStatus,
+} from "@/constants";
 import { customerModel, jobModel, reviewModel, userModel } from "@/models";
 import { attendanceService } from "./attendanceService";
 import type {
@@ -79,7 +84,7 @@ export const dashboardService = {
         status: { $ne: jobStatus.cancelled },
       }),
       jobModel.countDocuments({ status: { $nin: terminalJobStatuses } }),
-      jobModel.countDocuments({ status: jobStatus.completed }),
+      jobModel.countDocuments({ status: { $in: doneJobStatuses } }),
       // "Pending approvals" now means accounts awaiting admin verification.
       userModel.countDocuments({ status: userStatus.pending }),
       customerModel.countDocuments(),
@@ -162,7 +167,7 @@ export const dashboardService = {
         }),
         jobModel.countDocuments({
           assignedTechnicians: tech,
-          status: jobStatus.completed,
+          status: { $in: doneJobStatuses },
         }),
         jobModel
           .find({

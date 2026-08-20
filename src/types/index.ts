@@ -158,6 +158,7 @@ export interface Job {
   booking: Id;
   customer: Id;
   assignedTechnicians: Id[];
+  supervisor?: Id;
   serviceType: ServiceType;
   workName?: string;
   tanks: TankEntry[];
@@ -167,10 +168,13 @@ export interface Job {
   scheduledDate?: string;
   scheduledTime?: string;
   scheduledSlot?: Slot;
+  estimatedDurationMins?: number;
   status: JobStatus;
   statusHistory: JobStatusEvent[];
   startedAt?: string;
   completedAt?: string;
+  rescheduledFromJobId?: Id;
+  cancellationReason?: string;
   beforePhotos: Id[];
   afterPhotos: Id[];
   completionNotes?: string;
@@ -202,6 +206,8 @@ export interface ScheduledJob {
   status: JobStatus;
   scheduledDate?: string;
   scheduledTime?: string;
+  estimatedDurationMins?: number;
+  supervisorId?: Id;
   customer?: { id: Id; customerName: string; mobileNumber: string };
   assignedTechnicians: { id: Id; name: string }[];
 }
@@ -217,7 +223,49 @@ export interface TechnicianAvailability {
   jobCount: number;
   maxJobsPerDay: number;
   isAvailable: boolean;
+  /** Attendance for that day: present | late | halfDay, or null if no record. */
+  attendanceStatus: string | null;
   jobs: ScheduledJob[];
+}
+
+export interface TechnicianWorkload {
+  id: Id;
+  name: string;
+  activeJobs: number;
+  /** Today's attendance: present | late | halfDay, or null if not checked in. */
+  attendanceStatus: string | null;
+}
+
+export interface AppNotification {
+  id: Id;
+  userId: Id;
+  type: string;
+  jobId?: Id;
+  message: string;
+  url?: string;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubmissionPhoto {
+  id: Id;
+  photoType: string;
+  photoUrl: string;
+}
+
+export interface Submission {
+  id: Id;
+  type: string; // preWork | completion
+  status: string; // pending | approved | declined
+  submittedAt: string;
+  reviewedAt?: string;
+  declineReason?: string;
+  details?: Record<string, unknown>;
+  job?: { id: Id; jobCode: string; customerName?: string };
+  submittedBy?: { id: Id; name: string };
+  reviewedBy?: { id: Id; name: string };
+  photos: SubmissionPhoto[];
 }
 
 export interface GeoLocationPair {
@@ -424,6 +472,8 @@ export interface ReviewableJob {
   jobCode: string;
   customerName: string;
   technicianName?: string;
+  /** Crew members, for capturing per-staff internal ratings (C9). */
+  technicians?: { id: Id; name: string }[];
   completedAt?: string;
 }
 

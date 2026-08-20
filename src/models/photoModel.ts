@@ -1,5 +1,5 @@
 import mongoose, { Schema, type Model } from "mongoose";
-import { approvalStatus, photoKind } from "@/constants";
+import { allPhotoCategories, approvalStatus } from "@/constants";
 
 export interface PhotoMetadata {
   contentType: string;
@@ -13,7 +13,9 @@ export interface PhotoMetadata {
 export interface PhotoDocument {
   _id: mongoose.Types.ObjectId;
   jobId: mongoose.Types.ObjectId;
-  photoType: string; // before | after
+  photoType: string; // before | after | machinery | uniformMask | completion
+  /** Set when the photo belongs to a pre-work / completion submission. */
+  submissionId?: mongoose.Types.ObjectId;
   photoUrl: string;
   s3Key: string;
   uploadedBy: mongoose.Types.ObjectId;
@@ -44,7 +46,8 @@ const metadataSchema = new Schema<PhotoMetadata>(
 const photoSchema = new Schema<PhotoDocument>(
   {
     jobId: { type: Schema.Types.ObjectId, ref: "Job", required: true },
-    photoType: { type: String, enum: Object.values(photoKind), required: true },
+    photoType: { type: String, enum: allPhotoCategories, required: true },
+    submissionId: { type: Schema.Types.ObjectId, ref: "JobSubmission" },
     photoUrl: { type: String, required: true },
     s3Key: { type: String, required: true },
     uploadedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -62,6 +65,7 @@ const photoSchema = new Schema<PhotoDocument>(
 );
 
 photoSchema.index({ jobId: 1, photoType: 1 });
+photoSchema.index({ submissionId: 1 });
 // createdAt powers the admin Job-photos gallery (recent-first). The old
 // approvalStatus index is dropped — photo approval was removed, so nothing
 // queries it and it only added write overhead.

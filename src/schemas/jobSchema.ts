@@ -9,6 +9,12 @@ const timeSchema = z
   .optional()
   .or(z.literal(""));
 
+/** Estimated on-site duration in minutes (blank form value → undefined). */
+const durationSchema = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.coerce.number().int().min(15).max(1440).optional(),
+);
+
 /** Create a job from an existing booking (starts `pending`). */
 export const createJobSchema = z.object({
   booking: z.string().min(1, "Booking is required"),
@@ -41,8 +47,10 @@ export const jobIntakeSchema = z
     tanks: z.array(tankEntrySchema).min(1, "Add at least one item"),
     scheduledDate: z.coerce.date(),
     scheduledTime: timeSchema,
+    estimatedDurationMins: durationSchema,
     specialInstructions: z.string().trim().optional(),
     technicianIds: z.array(z.string().min(1)).default([]),
+    supervisorId: z.string().optional(),
   })
   .refine(
     (v) =>
@@ -62,6 +70,7 @@ export const updateJobSchema = z.object({
   googleMapLocation: googleMapLocationSchema,
   landmark: z.string().trim().optional(),
   tanks: z.array(tankEntrySchema).min(1, "Add at least one item").optional(),
+  estimatedDurationMins: durationSchema,
 });
 
 /** Set/replace the job's date & time → moves a pending job to `scheduled`. */
@@ -77,6 +86,9 @@ export const assignJobSchema = z.object({
     .min(1, "Select at least one technician"),
   scheduledDate: z.coerce.date().optional(),
   scheduledTime: timeSchema,
+  estimatedDurationMins: durationSchema,
+  /** Optional on-site supervisor — must be one of `technicianIds`. */
+  supervisorId: z.string().optional(),
 });
 
 /** Replace the job's crew with a different set of technicians. */
@@ -84,6 +96,7 @@ export const reassignJobSchema = z.object({
   technicianIds: z
     .array(z.string().min(1))
     .min(1, "Select at least one technician"),
+  supervisorId: z.string().optional(),
   note: z.string().trim().optional(),
 });
 

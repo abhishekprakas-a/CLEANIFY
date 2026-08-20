@@ -15,12 +15,24 @@ import {
   allServiceTypes,
   routes,
   serviceConfig,
+  serviceDefaultDurationMins,
   terminalJobStatuses,
   type ServiceType,
 } from "@/constants";
-import type { Job } from "@/types";
+import type { Job, TechnicianWorkload } from "@/types";
 
-type Workload = { id: string; name: string; activeJobs: number };
+type Workload = TechnicianWorkload;
+
+/** Small coloured pill describing a worker's attendance for today. */
+function attendancePill(status: string | null) {
+  if (status === "present")
+    return { label: "Present", cls: "bg-green-100 text-green-700" };
+  if (status === "late")
+    return { label: "Late", cls: "bg-amber-100 text-amber-700" };
+  if (status === "halfDay")
+    return { label: "Half day", cls: "bg-amber-100 text-amber-700" };
+  return { label: "Not checked in", cls: "bg-slate-100 text-slate-400" };
+}
 type PopRef = {
   id?: string;
   _id?: string;
@@ -51,14 +63,26 @@ function toDateInput(iso?: string): string {
   return `${d.getFullYear()}-${m}-${day}`;
 }
 
+/** "HH:mm" + minutes → "HH:mm" end time (same day, clamped at 23:59). */
+function endTimeLabel(start: string, mins: number): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(start);
+  if (!m || !Number.isFinite(mins)) return "—";
+  const total = Math.min(Number(m[1]) * 60 + Number(m[2]) + mins, 24 * 60 - 1);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+    total % 60,
+  ).padStart(2, "0")}`;
+}
+
 export function JobEdit({ id }: { id: string }) {
   const toast = useToast();
   const [job, setJob] = useState<JobDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [workload, setWorkload] = useState<Workload[]>([]);
   const [crew, setCrew] = useState<string[]>([]);
+  const [supervisor, setSupervisor] = useState("");
   const [schedDate, setSchedDate] = useState("");
   const [schedTime, setSchedTime] = useState("");
+  const [duration, setDuration] = useState("");
   const [savingCrew, setSavingCrew] = useState(false);
 
   const {
@@ -93,10 +117,17 @@ export function JobEdit({ id }: { id: string }) {
           googleMapLocation: j.googleMapLocation ?? "",
           landmark: j.landmark ?? "",
           tanks: (j.tanks ?? []) as never,
+          estimatedDurationMins: j.estimatedDurationMins,
         });
         setCrew((j.assignedTechnicians ?? []).map(refId).filter(Boolean));
+        setSupervisor(refId(j.supervisor));
         setSchedDate(toDateInput(j.scheduledDate));
         setSchedTime(j.scheduledTime ?? "");
+        setDuration(
+          j.estimatedDurationMins != null
+            ? String(j.estimatedDurationMins)
+            : String(serviceDefaultDurationMins(j.serviceType)),
+        );
       })
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Failed to load job"),
@@ -114,11 +145,16 @@ export function JobEdit({ id }: { id: string }) {
   }
 
   function toggleCrew(techId: string) {
-    setCrew((prev) =>
-      prev.includes(techId)
+    setCrew((prev) => {
+      const next = prev.includes(techId)
         ? prev.filter((x) => x !== techId)
-        : [...prev, techId],
-    );
+        : [...prev, techId];
+      // Keep the supervisor pointing at someone still on the crew.
+      setSupervisor((sup) =>
+        sup && next.includes(sup) ? sup : (next[0] ?? ""),
+      );
+      return next;
+    });
   }
 
   async function saveDetails(values: UpdateJobInput) {
@@ -146,6 +182,8 @@ export function JobEdit({ id }: { id: string }) {
         technicianIds: crew,
         scheduledDate: schedDate,
         scheduledTime: schedTime || undefined,
+        estimatedDurationMins: duration ? Number(duration) : undefined,
+        supervisorId: supervisor || undefined,
       });
       toast.success("Workers assigned & notified");
       loadJob();
@@ -204,7 +242,7 @@ export function JobEdit({ id }: { id: string }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
               Scheduled date
@@ -219,7 +257,7 @@ export function JobEdit({ id }: { id: string }) {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700">
-              Time (optional)
+              Start time
             </label>
             <input
               type="time"
@@ -229,7 +267,32 @@ export function JobEdit({ id }: { id: string }) {
               onChange={(e) => setSchedTime(e.target.value)}
             />
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">
+              Duration (min)
+            </label>
+            <input
+              type="number"
+              min={15}
+              max={1440}
+              step={15}
+              className={fieldClass}
+              value={duration}
+              disabled={isTerminal}
+              onChange={(e) => setDuration(e.target.value)}
+            />
+          </div>
         </div>
+        {schedTime && duration ? (
+          <p className="text-xs text-slate-400">
+            Ends around{" "}
+            <span className="font-medium text-slate-600">
+              {endTimeLabel(schedTime, Number(duration))}
+            </span>{" "}
+            · a {serviceDefaultDurationMins(service)}-min default applies for{" "}
+            {serviceConfig[service].label.toLowerCase()}.
+          </p>
+        ) : null}
 
         {workload.length === 0 ? (
           <p className="text-sm text-slate-400">No active technicians.</p>
@@ -237,6 +300,7 @@ export function JobEdit({ id }: { id: string }) {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {workload.map((t) => {
               const checked = crew.includes(t.id);
+              const att = attendancePill(t.attendanceStatus);
               return (
                 <label
                   key={t.id}
@@ -256,20 +320,55 @@ export function JobEdit({ id }: { id: string }) {
                     />
                     {t.name}
                   </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                      t.activeJobs >= 5
-                        ? "bg-red-100 text-red-700"
-                        : t.activeJobs > 0
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {t.activeJobs} job{t.activeJobs === 1 ? "" : "s"}
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${att.cls}`}
+                      title="Attendance today"
+                    >
+                      {att.label}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        t.activeJobs >= 5
+                          ? "bg-red-100 text-red-700"
+                          : t.activeJobs > 0
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {t.activeJobs} job{t.activeJobs === 1 ? "" : "s"}
+                    </span>
                   </span>
                 </label>
               );
             })}
+          </div>
+        )}
+
+        {crew.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">
+              On-site supervisor
+            </label>
+            <select
+              className={fieldClass}
+              value={supervisor}
+              disabled={isTerminal}
+              onChange={(e) => setSupervisor(e.target.value)}
+            >
+              {crew.map((cid) => {
+                const t = workload.find((w) => w.id === cid);
+                return (
+                  <option key={cid} value={cid}>
+                    {t?.name ?? cid}
+                  </option>
+                );
+              })}
+            </select>
+            <p className="text-xs text-slate-400">
+              The supervisor can approve this job&apos;s pre-work and completion
+              checks, alongside admins.
+            </p>
           </div>
         )}
 

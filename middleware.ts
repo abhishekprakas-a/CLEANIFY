@@ -11,11 +11,14 @@ import { roles, routes } from "@/constants";
 const technicianPrefixes = ["/technician", "/api/attendance"];
 const adminPrefixes = [
   routes.admin.dashboard,
+  routes.admin.bookingDesk,
+  routes.admin.calendar,
   routes.admin.customers,
   routes.admin.bookings,
   routes.admin.schedule,
   routes.admin.jobs,
   routes.admin.photos,
+  routes.admin.workApprovals,
   routes.admin.approvals,
   routes.admin.reviews,
   routes.admin.reports,
@@ -98,11 +101,14 @@ function forbid(pathname: string, req: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/booking-desk/:path*",
+    "/calendar/:path*",
     "/customers/:path*",
     "/bookings/:path*",
     "/schedule/:path*",
     "/jobs/:path*",
     "/photos/:path*",
+    "/work-approvals/:path*",
     "/approvals/:path*",
     "/reviews/:path*",
     "/reports/:path*",

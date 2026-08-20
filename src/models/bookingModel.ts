@@ -20,6 +20,7 @@ export interface BookingDocument {
   landmark?: string;
   scheduledDate: Date;
   scheduledTime?: string; // HH:mm
+  estimatedDurationMins?: number;
   specialInstructions?: string;
   bookingStatus: string;
   statusHistory: BookingStatusEventDocument[];
@@ -62,6 +63,7 @@ const bookingSchema = new Schema<BookingDocument>(
     totalCharge: { type: Number, min: 0 },
     scheduledDate: { type: Date, required: true },
     scheduledTime: { type: String },
+    estimatedDurationMins: { type: Number, min: 0 },
     specialInstructions: { type: String, trim: true },
     bookingStatus: {
       type: String,

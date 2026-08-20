@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
       status: sp.get("status") ?? undefined,
       technician: sp.get("technician") ?? undefined,
       date: sp.get("date") ?? undefined,
+      unassigned: sp.get("unassigned") === "1",
     });
     return ok(items, meta);
   });
