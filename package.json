@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "seed": "tsx src/scripts/seed.ts",
     "seed:demo": "tsx src/scripts/demoSeed.ts",
+    "seed:dev": "tsx src/scripts/seedDev.ts",
     "test:e2e": "tsx src/scripts/e2eTest.ts"
   },
   "dependencies": {

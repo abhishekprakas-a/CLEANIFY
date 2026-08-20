@@ -106,6 +106,18 @@ const nextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // v2 nav consolidation — old bookmarks/links keep working. Only the exact
+  // index paths are redirected; deep routes (e.g. /customers/[id],
+  // /bookings/[id]/edit) still resolve to their own pages.
+  async redirects() {
+    return [
+      { source: "/customers", destination: "/booking-desk?tab=customers", permanent: false },
+      { source: "/bookings", destination: "/booking-desk?tab=all-bookings", permanent: false },
+      { source: "/schedule", destination: "/calendar", permanent: false },
+      { source: "/photos", destination: "/work-approvals", permanent: false },
+      { source: "/approvals", destination: "/staff?tab=pending", permanent: false },
+    ];
+  },
 };
 
 export default withPWA(nextConfig);

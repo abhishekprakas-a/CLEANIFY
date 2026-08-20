@@ -12,6 +12,10 @@ export const routes = {
 
   admin: {
     dashboard: "/dashboard",
+    // v2: Booking Desk consolidates customers + bookings + scheduling.
+    bookingDesk: "/booking-desk",
+    calendar: "/calendar",
+    // Kept for deep links (detail/edit) + old→new redirects.
     customers: "/customers",
     bookings: "/bookings",
     schedule: "/schedule",
@@ -19,6 +23,7 @@ export const routes = {
     jobNew: "/jobs/new",
     approvals: "/approvals",
     photos: "/photos",
+    workApprovals: "/work-approvals",
     reviews: "/reviews",
     attendance: "/attendance",
     reports: "/reports",
@@ -58,6 +63,8 @@ export const routes = {
     reviews: "/api/reviews",
     dashboard: "/api/dashboard/summary",
     reports: "/api/reports",
+    submissions: "/api/submissions",
+    notifications: "/api/notifications",
   },
 } as const;
 

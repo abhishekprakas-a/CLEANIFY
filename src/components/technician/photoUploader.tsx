@@ -47,13 +47,18 @@ const approvalStyle: Record<string, string> = {
 export function PhotoUploader({
   jobId,
   photoType,
+  label,
   disabled,
   onCountChange,
+  onPhotosChange,
 }: {
   jobId: string;
-  photoType: "before" | "after";
+  photoType: "before" | "after" | "machinery" | "uniformMask" | "completion";
+  /** Button text override, e.g. "machinery" → "Add machinery photos". */
+  label?: string;
   disabled?: boolean;
   onCountChange?: (count: number) => void;
+  onPhotosChange?: (photos: Photo[]) => void;
 }) {
   const { confirm } = useDialog();
   const toast = useToast();
@@ -67,10 +72,11 @@ export function PhotoUploader({
       const mine = all.filter((p) => p.photoType === photoType);
       setServerPhotos(mine);
       onCountChange?.(mine.length);
+      onPhotosChange?.(mine);
     } catch {
       /* offline / none yet */
     }
-  }, [jobId, photoType, onCountChange]);
+  }, [jobId, photoType, onCountChange, onPhotosChange]);
 
   useEffect(() => {
     reload();
@@ -262,7 +268,7 @@ export function PhotoUploader({
             onClick={() => inputRef.current?.click()}
             className="w-full rounded-lg border-2 border-dashed border-brand-300 py-3 text-sm font-medium text-brand-700"
           >
-            📷 Add {photoType} photos
+            📷 Add {label ?? photoType} photos
           </button>
         </>
       )}

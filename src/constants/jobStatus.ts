@@ -5,11 +5,17 @@ export const jobStatus = {
   scheduled: "scheduled",
   assigned: "assigned",
   reachedSite: "reachedSite",
-  beforePhotoPendingApproval: "beforePhotoPendingApproval",
+  // v2 approval lifecycle (C12)
+  preWorkPendingApproval: "preWorkPendingApproval",
   cleaningInProgress: "cleaningInProgress",
-  afterPhotoPendingApproval: "afterPhotoPendingApproval",
+  completionPendingApproval: "completionPendingApproval",
   completed: "completed",
+  closed: "closed",
   cancelled: "cancelled",
+  rescheduled: "rescheduled",
+  // legacy states (kept so any historical record stays valid)
+  beforePhotoPendingApproval: "beforePhotoPendingApproval",
+  afterPhotoPendingApproval: "afterPhotoPendingApproval",
 } as const;
 
 export type JobStatus = (typeof jobStatus)[keyof typeof jobStatus];
@@ -19,7 +25,19 @@ export const allJobStatuses: JobStatus[] = Object.values(jobStatus);
 /** Statuses that are final — no further transitions. */
 export const terminalJobStatuses: JobStatus[] = [
   jobStatus.completed,
+  jobStatus.closed,
   jobStatus.cancelled,
+  jobStatus.rescheduled,
+];
+
+/**
+ * Statuses that count as "work done" for productivity/reporting. A job stays
+ * COMPLETED until its review + staff ratings are captured, then moves to CLOSED
+ * — both represent finished work, so counts must include both.
+ */
+export const doneJobStatuses: JobStatus[] = [
+  jobStatus.completed,
+  jobStatus.closed,
 ];
 
 /**
@@ -34,24 +52,52 @@ export const terminalJobStatuses: JobStatus[] = [
  */
 export const jobTransitions: Record<JobStatus, JobStatus[]> = {
   pending: [jobStatus.scheduled, jobStatus.cancelled],
-  scheduled: [jobStatus.assigned, jobStatus.cancelled],
-  assigned: [jobStatus.reachedSite, jobStatus.cancelled],
-  // upload before photos, then start cleaning (no approval)
-  reachedSite: [jobStatus.cleaningInProgress, jobStatus.cancelled],
-  // legacy: resolve an already-pending before-photo job
+  scheduled: [jobStatus.assigned, jobStatus.cancelled, jobStatus.rescheduled],
+  assigned: [
+    jobStatus.reachedSite,
+    jobStatus.cancelled,
+    jobStatus.rescheduled,
+  ],
+  // On site → submit pre-work for approval (Phase 3). Direct start kept for
+  // backward-compat until the approval gate is enforced.
+  reachedSite: [
+    jobStatus.preWorkPendingApproval,
+    jobStatus.cleaningInProgress,
+    jobStatus.cancelled,
+  ],
+  // Pre-work: admin/supervisor approves → in progress; declines → back on site.
+  preWorkPendingApproval: [
+    jobStatus.cleaningInProgress,
+    jobStatus.reachedSite,
+    jobStatus.cancelled,
+  ],
+  // In progress → submit completion for approval (Phase 3). Direct complete
+  // kept for backward-compat until the gate is enforced.
+  cleaningInProgress: [
+    jobStatus.completionPendingApproval,
+    jobStatus.completed,
+    jobStatus.cancelled,
+  ],
+  // Completion: approve → completed; decline → back to in progress (rework).
+  completionPendingApproval: [
+    jobStatus.completed,
+    jobStatus.cleaningInProgress,
+    jobStatus.cancelled,
+  ],
+  // Completed → closed after the customer review + staff rating (Phase 4).
+  completed: [jobStatus.closed],
+  closed: [],
+  cancelled: [],
+  rescheduled: [],
+  // legacy states (historical records only)
   beforePhotoPendingApproval: [
     jobStatus.cleaningInProgress,
     jobStatus.reachedSite,
   ],
-  // upload after photos, then complete (no approval)
-  cleaningInProgress: [jobStatus.completed, jobStatus.cancelled],
-  // legacy: resolve an already-pending after-photo job
   afterPhotoPendingApproval: [
     jobStatus.completed,
     jobStatus.cleaningInProgress,
   ],
-  completed: [],
-  cancelled: [],
 };
 
 /**
@@ -64,11 +110,21 @@ export const jobTransitionRoles: Record<JobStatus, Role[]> = {
   scheduled: [roles.admin],
   assigned: [roles.admin],
   reachedSite: [roles.technician],
-  beforePhotoPendingApproval: [roles.technician],
+  // Technician submits pre-work / completion for approval.
+  preWorkPendingApproval: [roles.technician],
+  completionPendingApproval: [roles.technician],
+  // Entering "in progress" or "completed" is an approval edge — admins, and
+  // (per-job) the designated supervisor, who is a technician. The supervisor
+  // check is enforced in the service layer, not by role alone.
   cleaningInProgress: [roles.technician, roles.admin],
-  afterPhotoPendingApproval: [roles.technician],
   completed: [roles.technician, roles.admin],
+  // Closing after review + rescheduling are admin-driven.
+  closed: [roles.admin],
+  rescheduled: [roles.admin],
   cancelled: [roles.admin],
+  // legacy
+  beforePhotoPendingApproval: [roles.technician],
+  afterPhotoPendingApproval: [roles.technician],
 };
 
 export const slot = {

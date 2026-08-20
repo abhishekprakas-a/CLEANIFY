@@ -18,6 +18,7 @@ import {
   allServiceTypes,
   routes,
   serviceConfig,
+  serviceDefaultDurationMins,
   type ServiceType,
 } from "@/constants";
 import type { Customer, Job, User } from "@/types";
@@ -334,7 +335,7 @@ export function JobIntakeForm() {
       </section>
 
       {/* --- Schedule ------------------------------------------------------ */}
-      <section className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+      <section className="grid grid-cols-3 gap-4 border-t border-slate-100 pt-5">
         <Input
           label="Scheduled date"
           type="date"
@@ -342,10 +343,20 @@ export function JobIntakeForm() {
           {...register("scheduledDate")}
         />
         <Input
-          label="Scheduled time (optional)"
+          label="Start time (optional)"
           type="time"
           error={errors.scheduledTime?.message}
           {...register("scheduledTime")}
+        />
+        <Input
+          label="Duration (min)"
+          type="number"
+          min={15}
+          max={1440}
+          step={15}
+          placeholder={String(serviceDefaultDurationMins(selectedService))}
+          error={errors.estimatedDurationMins?.message}
+          {...register("estimatedDurationMins")}
         />
       </section>
 

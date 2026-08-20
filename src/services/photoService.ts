@@ -9,7 +9,13 @@ import {
   type PresignResult,
 } from "@/lib/storageClient";
 import { recordAudit } from "@/lib/audit";
-import { approvalStatus, jobStatus, photoKind, roles } from "@/constants";
+import {
+  approvalStatus,
+  doneJobStatuses,
+  photoKind,
+  roles,
+  type JobStatus,
+} from "@/constants";
 import { jobModel, photoModel } from "@/models";
 import type {
   ConfirmPhotoInput,
@@ -91,11 +97,18 @@ export const photoService = {
       },
     });
 
-    const field =
-      input.photoType === photoKind.before ? "beforePhotos" : "afterPhotos";
-    await jobModel.findByIdAndUpdate(input.jobId, {
-      $addToSet: { [field]: photo._id },
-    });
+    // Only the legacy before/after kinds mirror onto the job arrays; the v2
+    // submission categories are linked via `submissionId` instead.
+    if (
+      input.photoType === photoKind.before ||
+      input.photoType === photoKind.after
+    ) {
+      const field =
+        input.photoType === photoKind.before ? "beforePhotos" : "afterPhotos";
+      await jobModel.findByIdAndUpdate(input.jobId, {
+        $addToSet: { [field]: photo._id },
+      });
+    }
 
     return toDto<Photo>(photo.toObject());
   },
@@ -117,13 +130,17 @@ export const photoService = {
     }
 
     const job = await jobModel.findById(photo.jobId);
-    if (job && job.status === jobStatus.completed && !isAdmin) {
+    if (job && doneJobStatuses.includes(job.status as JobStatus) && !isAdmin) {
       throw ApiError.unprocessable(
         "This job is completed; its photos can't be changed",
       );
     }
 
-    if (job) {
+    if (
+      job &&
+      (photo.photoType === photoKind.before ||
+        photo.photoType === photoKind.after)
+    ) {
       const field =
         photo.photoType === photoKind.before ? "beforePhotos" : "afterPhotos";
       await jobModel.findByIdAndUpdate(job._id, {

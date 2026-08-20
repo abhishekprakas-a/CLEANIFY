@@ -4,7 +4,7 @@ import { toDto, toDtoList } from "@/lib/serialize";
 import { buildMeta } from "@/lib/pagination";
 import { escapeRegex } from "@/lib/sanitize";
 import { recordAudit } from "@/lib/audit";
-import { jobStatus, userStatus } from "@/constants";
+import { doneJobStatuses, userStatus } from "@/constants";
 import { bookingModel, customerModel, jobModel } from "@/models";
 import type {
   CreateCustomerInput,
@@ -141,7 +141,10 @@ export const customerService = {
     const [bookings, jobs, completedJobs] = await Promise.all([
       bookingModel.find({ customerId: id }).sort({ createdAt: -1 }).lean(),
       jobModel.find({ customer: id }).sort({ createdAt: -1 }).lean(),
-      jobModel.countDocuments({ customer: id, status: jobStatus.completed }),
+      jobModel.countDocuments({
+        customer: id,
+        status: { $in: doneJobStatuses },
+      }),
     ]);
 
     return {

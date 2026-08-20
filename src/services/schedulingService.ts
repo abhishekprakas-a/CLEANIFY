@@ -1,26 +1,30 @@
 import { dbConnect } from "@/lib/dbConnect";
 import { ApiError } from "@/lib/apiError";
 import { toDto } from "@/lib/serialize";
+import { recordAudit } from "@/lib/audit";
 import { applyJobTransition } from "@/lib/jobWorkflow";
 import {
   assignmentStatus,
   bookingStatus,
   calendarView,
   jobStatus,
+  notificationType,
   roles,
   schedulingPolicy,
+  serviceDefaultDurationMins,
   terminalJobStatuses,
   userStatus,
   type CalendarView,
   type JobStatus,
 } from "@/constants";
 import {
+  attendanceModel,
   bookingModel,
   jobAssignmentModel,
   jobModel,
   userModel,
 } from "@/models";
-import { notificationService } from "./notificationService";
+import { inAppNotificationService } from "./inAppNotificationService";
 import type {
   AssignJobInput,
   ReassignJobInput,
@@ -32,6 +36,7 @@ import type {
   ScheduledJob,
   SessionUser,
   TechnicianAvailability,
+  TechnicianWorkload,
 } from "@/types";
 
 // --- date helpers (local day) ---------------------------------------------
@@ -55,6 +60,25 @@ function parseDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00`);
 }
 
+/** "HH:mm" → minutes since midnight, or null if absent/malformed. */
+function timeToMins(time?: string | null): number | null {
+  if (!time) return null;
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Effective duration (minutes) for a job — explicit, else per-service default. */
+function jobDurationMins(job: {
+  estimatedDurationMins?: number | null;
+  serviceType?: string | null;
+}): number {
+  return (
+    job.estimatedDurationMins ??
+    serviceDefaultDurationMins(job.serviceType ?? undefined)
+  );
+}
+
 // --- mapping ---------------------------------------------------------------
 
 interface PopulatedRef {
@@ -75,6 +99,9 @@ function toScheduledJob(doc: Record<string, unknown>): ScheduledJob {
       ? new Date(doc.scheduledDate as string).toISOString()
       : undefined,
     scheduledTime: (doc.scheduledTime as string) || undefined,
+    estimatedDurationMins:
+      (doc.estimatedDurationMins as number | undefined) ?? undefined,
+    supervisorId: doc.supervisor ? String(doc.supervisor) : undefined,
     customer: customer?._id
       ? {
           id: String(customer._id),
@@ -110,27 +137,30 @@ async function findScheduledJobs(
 }
 
 /**
- * Best-effort push to each assigned technician ("New job assigned"). Never
- * throws — a failed/disabled push must not fail the assignment itself.
+ * Notify each assigned technician (in-app + best-effort push). Never throws — a
+ * failed/disabled notification must not fail the assignment itself.
  */
 async function notifyAssignedTechnicians(
   job: { _id: unknown; jobCode: string; scheduledDate?: Date | null },
   technicianIds: string[],
+  kind: "assigned" | "reassigned" = "assigned",
 ): Promise<void> {
   const when = job.scheduledDate
     ? new Date(job.scheduledDate).toLocaleDateString()
     : "soon";
-  await Promise.all(
-    technicianIds.map((id) =>
-      notificationService
-        .notifyUser(String(id), {
-          title: "New job assigned",
-          body: `${job.jobCode} — scheduled ${when}. Tap to view.`,
-          url: `/technician/jobs/${String(job._id)}`,
-          tag: `job-${String(job._id)}`,
-        })
-        .catch(() => 0),
-    ),
+  const verb = kind === "assigned" ? "assigned to you" : "reassigned to you";
+  await inAppNotificationService.emitMany(
+    technicianIds.map(String),
+    {
+      type:
+        kind === "assigned"
+          ? notificationType.jobAssigned
+          : notificationType.jobReassigned,
+      jobId: String(job._id),
+      message: `${job.jobCode} — ${verb}, scheduled ${when}`,
+      url: `/technician/jobs/${String(job._id)}`,
+      push: { title: "New job assigned" },
+    },
   );
 }
 
@@ -138,14 +168,21 @@ async function notifyAssignedTechnicians(
 
 export const schedulingService = {
   /**
-   * Detect a scheduling conflict: another non-terminal job for the same
-   * technician on the same day (and same time slot when the policy requires it).
+   * Detect a scheduling conflict for a technician on a given day.
+   *
+   * When the incoming job has a start time, this compares time ranges
+   * (start → start + duration) with a travel/setup buffer applied on each side;
+   * any overlap with another of the technician's non-terminal jobs is a
+   * conflict. Jobs without a start time fall back to the "any job that day"
+   * rule (a timeless job can't be range-checked). The returned job lets callers
+   * name the clashing job in the error.
    */
   async findConflict(
     technicianId: string,
     date: Date,
     time: string | undefined,
     excludeJobId?: string,
+    durationMins?: number,
   ): Promise<Job | null> {
     const { start, end } = dayRange(date);
     const filter: Record<string, unknown> = {
@@ -154,10 +191,37 @@ export const schedulingService = {
       scheduledDate: { $gte: start, $lt: end },
     };
     if (excludeJobId) filter._id = { $ne: excludeJobId };
-    if (schedulingPolicy.blockSameSlot && time) filter.scheduledTime = time;
 
-    const conflict = await jobModel.findOne(filter).lean();
-    return conflict ? toDto<Job>(conflict) : null;
+    const sameDay = await jobModel.find(filter).lean();
+    if (sameDay.length === 0) return null;
+
+    const startMins = timeToMins(time);
+    // No start time on the incoming job → can't range-check; any same-day job
+    // is treated as a clash (preserves the previous timeless behaviour).
+    if (startMins == null) {
+      return toDto<Job>(sameDay[0]);
+    }
+
+    const buffer = schedulingPolicy.bufferMins;
+    const endMins =
+      startMins + (durationMins ?? serviceDefaultDurationMins(undefined));
+
+    for (const other of sameDay) {
+      const otherStart = timeToMins(
+        (other as { scheduledTime?: string }).scheduledTime,
+      );
+      if (otherStart == null) continue; // timeless existing job — no overlap
+      const otherEnd =
+        otherStart +
+        jobDurationMins(
+          other as { estimatedDurationMins?: number; serviceType?: string },
+        );
+      // Overlap (with buffer) when each range starts before the other ends.
+      if (startMins < otherEnd + buffer && otherStart < endMins + buffer) {
+        return toDto<Job>(other);
+      }
+    }
+    return null;
   },
 
   /** Active (non-terminal) jobs a technician already holds on a day. */
@@ -173,15 +237,21 @@ export const schedulingService = {
     if (!tech) throw ApiError.notFound("Technician not found");
 
     const { start, end } = dayRange(parseDate(dateStr));
-    const docs = await jobModel
-      .find({
-        assignedTechnicians: technicianId,
-        status: { $nin: terminalJobStatuses },
-        scheduledDate: { $gte: start, $lt: end },
-      })
-      .populate("customer", "customerName mobileNumber")
-      .populate("assignedTechnicians", "name")
-      .lean();
+    const [docs, attendance] = await Promise.all([
+      jobModel
+        .find({
+          assignedTechnicians: technicianId,
+          status: { $nin: terminalJobStatuses },
+          scheduledDate: { $gte: start, $lt: end },
+        })
+        .populate("customer", "customerName mobileNumber")
+        .populate("assignedTechnicians", "name")
+        .lean(),
+      attendanceModel
+        .findOne({ userId: technicianId, date: dateStr })
+        .select("status")
+        .lean(),
+    ]);
 
     const jobs = docs.map((d) => toScheduledJob(d as Record<string, unknown>));
     return {
@@ -190,6 +260,7 @@ export const schedulingService = {
       jobCount: jobs.length,
       maxJobsPerDay: schedulingPolicy.maxJobsPerDay,
       isAvailable: jobs.length < schedulingPolicy.maxJobsPerDay,
+      attendanceStatus: attendance?.status ?? null,
       jobs,
     };
   },
@@ -199,6 +270,7 @@ export const schedulingService = {
     date: Date,
     time: string | undefined,
     excludeJobId?: string,
+    durationMins?: number,
   ): Promise<void> {
     const tech = await userModel.findOne({
       _id: technicianId,
@@ -212,10 +284,12 @@ export const schedulingService = {
       date,
       time,
       excludeJobId,
+      durationMins,
     );
     if (conflict) {
+      const at = conflict.scheduledTime ? ` at ${conflict.scheduledTime}` : "";
       throw ApiError.conflict(
-        `Technician already has job ${conflict.jobCode} at this time`,
+        `${tech.name} already has job ${conflict.jobCode}${at} — overlaps this slot`,
       );
     }
 
@@ -255,20 +329,33 @@ export const schedulingService = {
       throw ApiError.badRequest("Schedule a date before assigning");
     }
     const scheduledTime = input.scheduledTime || job.scheduledTime;
+    const durationMins =
+      input.estimatedDurationMins ??
+      job.estimatedDurationMins ??
+      serviceDefaultDurationMins(job.serviceType);
 
     const technicianIds = [...new Set(input.technicianIds)];
+    // A supervisor, if named, must be part of the assigned crew.
+    if (input.supervisorId && !technicianIds.includes(input.supervisorId)) {
+      throw ApiError.badRequest(
+        "The supervisor must be one of the assigned technicians",
+      );
+    }
     for (const technicianId of technicianIds) {
       await schedulingService.assertTechnicianAvailable(
         technicianId,
         scheduledDate,
         scheduledTime,
         jobId,
+        durationMins,
       );
     }
 
     job.scheduledDate = scheduledDate;
     job.scheduledTime = scheduledTime;
+    job.estimatedDurationMins = durationMins;
     job.assignedTechnicians = technicianIds as never;
+    job.supervisor = (input.supervisorId ?? technicianIds[0]) as never;
 
     // pending → scheduled → assigned (skip the first hop if already scheduled).
     if (job.status === jobStatus.pending) {
@@ -321,12 +408,19 @@ export const schedulingService = {
     if (!job.scheduledDate) throw ApiError.badRequest("Job has no schedule");
 
     const technicianIds = [...new Set(input.technicianIds)];
+    if (input.supervisorId && !technicianIds.includes(input.supervisorId)) {
+      throw ApiError.badRequest(
+        "The supervisor must be one of the assigned technicians",
+      );
+    }
+    const durationMins = jobDurationMins(job);
     for (const technicianId of technicianIds) {
       await schedulingService.assertTechnicianAvailable(
         technicianId,
         job.scheduledDate,
         job.scheduledTime,
         jobId,
+        durationMins,
       );
     }
 
@@ -348,6 +442,13 @@ export const schedulingService = {
     );
 
     job.assignedTechnicians = technicianIds as never;
+    // Keep the supervisor valid: use the named one, else the previous supervisor
+    // if still on the crew, else the first technician.
+    const prevSupervisor = job.supervisor ? String(job.supervisor) : undefined;
+    job.supervisor = (input.supervisorId ??
+      (prevSupervisor && technicianIds.includes(prevSupervisor)
+        ? prevSupervisor
+        : technicianIds[0])) as never;
     job.statusHistory.push({
       status: jobStatus.assigned,
       at: new Date(),
@@ -356,16 +457,18 @@ export const schedulingService = {
     } as never);
     await job.save();
 
-    await notifyAssignedTechnicians(job, technicianIds);
+    await notifyAssignedTechnicians(job, technicianIds, "reassigned");
     return toDto<Job>(job.toObject());
   },
 
-  /** Active (non-terminal) job count per active technician — the crew "load". */
-  async workload(): Promise<
-    { id: string; name: string; activeJobs: number }[]
-  > {
+  /**
+   * Active (non-terminal) job count per active technician — the crew "load" —
+   * plus today's attendance so the assign UI can flag absent/half-day workers.
+   */
+  async workload(): Promise<TechnicianWorkload[]> {
     await dbConnect();
-    const [techs, counts] = await Promise.all([
+    const today = dateKey(new Date());
+    const [techs, counts, attendance] = await Promise.all([
       userModel
         .find({ role: roles.technician, status: userStatus.active })
         .select("name")
@@ -376,12 +479,17 @@ export const schedulingService = {
         { $unwind: "$assignedTechnicians" },
         { $group: { _id: "$assignedTechnicians", count: { $sum: 1 } } },
       ]),
+      attendanceModel.find({ date: today }).select("userId status").lean(),
     ]);
     const byId = new Map(counts.map((c) => [String(c._id), c.count]));
+    const attById = new Map(
+      attendance.map((a) => [String(a.userId), a.status]),
+    );
     return techs.map((t) => ({
       id: String(t._id),
       name: t.name,
       activeJobs: byId.get(String(t._id)) ?? 0,
+      attendanceStatus: attById.get(String(t._id)) ?? null,
     }));
   },
 
@@ -399,15 +507,19 @@ export const schedulingService = {
     }
 
     const scheduledTime = input.scheduledTime || undefined;
+    const durationMins = jobDurationMins(job);
     for (const technicianId of job.assignedTechnicians ?? []) {
       await schedulingService.assertTechnicianAvailable(
         String(technicianId),
         input.scheduledDate,
         scheduledTime,
         jobId,
+        durationMins,
       );
     }
 
+    const prevDate = job.scheduledDate;
+    const prevTime = job.scheduledTime;
     job.scheduledDate = input.scheduledDate;
     job.scheduledTime = scheduledTime;
     job.statusHistory.push({
@@ -418,9 +530,41 @@ export const schedulingService = {
     } as never);
     await job.save();
 
+    await recordAudit({
+      actor: user.id,
+      actorName: user.name,
+      action: "job.reschedule",
+      entityType: "job",
+      entityId: String(job._id),
+      meta: {
+        from: {
+          date: prevDate ? new Date(prevDate).toISOString() : null,
+          time: prevTime ?? null,
+        },
+        to: {
+          date: new Date(input.scheduledDate).toISOString(),
+          time: scheduledTime ?? null,
+        },
+      },
+    });
+
     await jobAssignmentModel.updateMany(
       { job: job._id, status: assignmentStatus.active },
       { scheduledDate: input.scheduledDate, scheduledTime },
+    );
+
+    const when = new Date(input.scheduledDate).toLocaleDateString();
+    await inAppNotificationService.emitMany(
+      (job.assignedTechnicians ?? []).map(String),
+      {
+        type: notificationType.jobRescheduled,
+        jobId: String(job._id),
+        message: `${job.jobCode} rescheduled to ${when}${
+          scheduledTime ? ` · ${scheduledTime}` : ""
+        }`,
+        url: `/technician/jobs/${String(job._id)}`,
+        push: { title: "Job rescheduled" },
+      },
     );
 
     return toDto<Job>(job.toObject());

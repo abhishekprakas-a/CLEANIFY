@@ -15,6 +15,8 @@ export interface JobDocument {
   booking: mongoose.Types.ObjectId;
   customer: mongoose.Types.ObjectId;
   assignedTechnicians: mongoose.Types.ObjectId[];
+  /** One of `assignedTechnicians`, designated as the on-site supervisor. */
+  supervisor?: mongoose.Types.ObjectId;
   serviceType: string;
   workName?: string;
   tanks: TankEntryDocument[];
@@ -24,10 +26,15 @@ export interface JobDocument {
   scheduledDate?: Date;
   scheduledTime?: string; // HH:mm
   scheduledSlot?: string; // legacy morning/afternoon/evening
+  /** Estimated on-site duration in minutes — drives end-time + conflict math. */
+  estimatedDurationMins?: number;
   status: string;
   statusHistory: JobStatusEventDocument[];
   startedAt?: Date;
   completedAt?: Date;
+  /** When this job was created by rescheduling another, the original's id. */
+  rescheduledFromJobId?: mongoose.Types.ObjectId;
+  cancellationReason?: string;
   beforePhotos: mongoose.Types.ObjectId[];
   afterPhotos: mongoose.Types.ObjectId[];
   completionNotes?: string;
@@ -62,6 +69,7 @@ const jobSchema = new Schema<JobDocument>(
       type: [{ type: Schema.Types.ObjectId, ref: "User" }],
       default: [],
     },
+    supervisor: { type: Schema.Types.ObjectId, ref: "User" },
     serviceType: { type: String, default: "waterTank" },
     workName: { type: String, trim: true },
     googleMapLocation: { type: String, trim: true },
@@ -71,6 +79,7 @@ const jobSchema = new Schema<JobDocument>(
     scheduledDate: { type: Date },
     scheduledTime: { type: String },
     scheduledSlot: { type: String, enum: Object.values(slot) },
+    estimatedDurationMins: { type: Number, min: 0 },
     status: {
       type: String,
       enum: allJobStatuses,
@@ -80,6 +89,8 @@ const jobSchema = new Schema<JobDocument>(
     statusHistory: { type: [statusEventSchema], default: [] },
     startedAt: { type: Date },
     completedAt: { type: Date },
+    rescheduledFromJobId: { type: Schema.Types.ObjectId, ref: "Job" },
+    cancellationReason: { type: String, trim: true },
     beforePhotos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
     afterPhotos: [{ type: Schema.Types.ObjectId, ref: "Photo" }],
     completionNotes: { type: String },

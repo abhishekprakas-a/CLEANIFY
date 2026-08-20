@@ -142,6 +142,8 @@ export const bookingService = {
     if (input.googleMapLocation !== undefined)
       jobPatch.googleMapLocation = input.googleMapLocation;
     if (input.landmark !== undefined) jobPatch.landmark = input.landmark;
+    if (input.estimatedDurationMins !== undefined)
+      jobPatch.estimatedDurationMins = input.estimatedDurationMins;
     if (Object.keys(jobPatch).length > 0) {
       await jobModel.updateOne(
         { booking: booking._id, status: { $nin: terminalJobStatuses } },

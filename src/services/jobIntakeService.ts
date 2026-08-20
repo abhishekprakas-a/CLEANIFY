@@ -1,7 +1,11 @@
 import { dbConnect } from "@/lib/dbConnect";
 import { ApiError } from "@/lib/apiError";
 import { recordAudit } from "@/lib/audit";
-import { bookingStatus, userStatus } from "@/constants";
+import {
+  bookingStatus,
+  serviceDefaultDurationMins,
+  userStatus,
+} from "@/constants";
 import { bookingModel, customerModel } from "@/models";
 import { jobService } from "./jobService";
 import { schedulingService } from "./schedulingService";
@@ -59,11 +63,21 @@ export const jobIntakeService = {
     // Validate crew availability BEFORE creating anything, so a conflict/
     // capacity/inactive rejection can't leave an orphaned customer/booking/job.
     const technicianIds = [...new Set(input.technicianIds)];
+    if (input.supervisorId && !technicianIds.includes(input.supervisorId)) {
+      throw ApiError.badRequest(
+        "The supervisor must be one of the assigned technicians",
+      );
+    }
+    const durationMins =
+      input.estimatedDurationMins ??
+      serviceDefaultDurationMins(input.serviceType);
     for (const technicianId of technicianIds) {
       await schedulingService.assertTechnicianAvailable(
         technicianId,
         input.scheduledDate,
         input.scheduledTime || undefined,
+        undefined,
+        durationMins,
       );
     }
 
@@ -89,6 +103,7 @@ export const jobIntakeService = {
       totalCharge,
       scheduledDate: input.scheduledDate,
       scheduledTime: input.scheduledTime || undefined,
+      estimatedDurationMins: input.estimatedDurationMins,
       specialInstructions: input.specialInstructions || undefined,
       bookingStatus: bookingStatus.pending,
       statusHistory: [
@@ -120,6 +135,8 @@ export const jobIntakeService = {
           technicianIds,
           scheduledDate: input.scheduledDate,
           scheduledTime: input.scheduledTime,
+          estimatedDurationMins: input.estimatedDurationMins,
+          supervisorId: input.supervisorId,
         },
         user,
       );

@@ -1,12 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useDialog } from "@/components/ui/dialog";
 import { api } from "@/hooks/useApi";
 import { useToast } from "@/hooks/useToast";
-import { calendarView, routes, type CalendarView } from "@/constants";
+import {
+  calendarView,
+  routes,
+  statusCalendarColor,
+  type CalendarView,
+} from "@/constants";
 import type { DaySchedule, ScheduledJob, User } from "@/types";
 
 // --- date helpers ----------------------------------------------------------
@@ -29,8 +35,27 @@ function addMonths(s: string, n: number): string {
   d.setMonth(d.getMonth() + n);
   return key(d);
 }
+function endTime(start?: string, mins?: number): string | null {
+  if (!start || !mins) return null;
+  const m = /^(\d{2}):(\d{2})$/.exec(start);
+  if (!m) return null;
+  const total = Math.min(Number(m[1]) * 60 + Number(m[2]) + mins, 24 * 60 - 1);
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+    total % 60,
+  ).padStart(2, "0")}`;
+}
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+// Legend: the six lifecycle colour groups (spec §C3).
+const LEGEND: { label: string; sample: string }[] = [
+  { label: "Scheduled", sample: "scheduled" },
+  { label: "Pre-work approval", sample: "preWorkPendingApproval" },
+  { label: "In progress", sample: "cleaningInProgress" },
+  { label: "Completion approval", sample: "completionPendingApproval" },
+  { label: "Completed", sample: "completed" },
+  { label: "Cancelled", sample: "cancelled" },
+];
 
 function monthLabel(s: string): string {
   return parse(s).toLocaleDateString(undefined, {
@@ -49,6 +74,7 @@ export function SchedulingCalendar() {
   const [days, setDays] = useState<DaySchedule[]>([]);
   const [technicians, setTechnicians] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<ScheduledJob | null>(null);
 
   useEffect(() => {
     api
@@ -124,6 +150,7 @@ export function SchedulingCalendar() {
         scheduledDate: res.date,
         scheduledTime: res.time,
       });
+      setSelected(null);
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Reschedule failed");
@@ -183,6 +210,8 @@ export function SchedulingCalendar() {
         </div>
       </div>
 
+      <Legend />
+
       {loading ? (
         <p className="text-sm text-slate-400">Loading schedule…</p>
       ) : view === calendarView.monthly ? (
@@ -193,18 +222,78 @@ export function SchedulingCalendar() {
             setAnchor(d);
             setView(calendarView.daily);
           }}
+          onPickJob={setSelected}
         />
       ) : view === calendarView.weekly ? (
-        <WeekGrid days={days} />
+        <WeekGrid days={days} onPickJob={setSelected} />
       ) : (
-        <DayList
+        <DayView
           day={days[0]}
           technicians={technicians}
           onAssign={assign}
           onReschedule={reschedule}
+          onPickJob={setSelected}
+        />
+      )}
+
+      {selected && (
+        <JobDrawer
+          job={selected}
+          onClose={() => setSelected(null)}
+          onReschedule={() => reschedule(selected)}
         />
       )}
     </div>
+  );
+}
+
+// --- legend ----------------------------------------------------------------
+
+function Legend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2">
+      {LEGEND.map((l) => (
+        <span
+          key={l.label}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-500"
+        >
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: statusCalendarColor(l.sample) }}
+          />
+          {l.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// --- a single job chip (colour-coded) --------------------------------------
+
+function JobChip({
+  job,
+  onClick,
+  dense,
+}: {
+  job: ScheduledJob;
+  onClick: () => void;
+  dense?: boolean;
+}) {
+  const color = statusCalendarColor(job.status);
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`${job.jobCode} · ${job.status}`}
+      className="flex w-full items-center gap-1 truncate rounded border border-slate-100 bg-white px-1 py-0.5 text-left text-[11px] text-slate-700 hover:bg-slate-50"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <span className="truncate">
+        {job.scheduledTime ? `${job.scheduledTime} ` : ""}
+        {dense ? "" : "· "}
+        {job.customer?.customerName ?? job.jobCode}
+      </span>
+    </button>
   );
 }
 
@@ -214,10 +303,12 @@ function MonthGrid({
   anchor,
   days,
   onPickDay,
+  onPickJob,
 }: {
   anchor: string;
   days: DaySchedule[];
   onPickDay: (date: string) => void;
+  onPickJob: (job: ScheduledJob) => void;
 }) {
   const byDay = new Map(days.map((d) => [d.date, d.jobs]));
   const first = parse(anchor);
@@ -248,34 +339,34 @@ function MonthGrid({
           const jobs = byDay.get(k) ?? [];
           const inMonth = d.getMonth() === month;
           return (
-            <button
+            <div
               key={k}
-              onClick={() => onPickDay(k)}
-              className={`min-h-24 border-b border-r border-slate-100 p-1.5 text-left align-top hover:bg-brand-50 ${
+              className={`min-h-24 border-b border-r border-slate-100 p-1.5 align-top ${
                 inMonth ? "" : "bg-slate-50 text-slate-300"
               }`}
             >
-              <div className="text-xs font-medium text-slate-500">
+              <button
+                type="button"
+                onClick={() => onPickDay(k)}
+                className="text-xs font-medium text-slate-500 hover:text-brand-600"
+              >
                 {d.getDate()}
-              </div>
+              </button>
               <div className="mt-1 space-y-1">
                 {jobs.slice(0, 3).map((j) => (
-                  <div
-                    key={j.id}
-                    className="truncate rounded bg-brand-100 px-1 text-[11px] text-brand-800"
-                    title={`${j.jobCode} · ${j.status}`}
-                  >
-                    {j.scheduledTime ? `${j.scheduledTime} ` : ""}
-                    {j.customer?.customerName ?? j.jobCode}
-                  </div>
+                  <JobChip key={j.id} job={j} dense onClick={() => onPickJob(j)} />
                 ))}
                 {jobs.length > 3 && (
-                  <div className="text-[11px] text-slate-400">
+                  <button
+                    type="button"
+                    onClick={() => onPickDay(k)}
+                    className="text-[11px] text-slate-400 hover:text-brand-600"
+                  >
                     +{jobs.length - 3} more
-                  </div>
+                  </button>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -285,7 +376,13 @@ function MonthGrid({
 
 // --- week ------------------------------------------------------------------
 
-function WeekGrid({ days }: { days: DaySchedule[] }) {
+function WeekGrid({
+  days,
+  onPickJob,
+}: {
+  days: DaySchedule[];
+  onPickJob: (job: ScheduledJob) => void;
+}) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
       {days.map((d) => (
@@ -301,20 +398,7 @@ function WeekGrid({ days }: { days: DaySchedule[] }) {
               <p className="text-[11px] text-slate-300">—</p>
             ) : (
               d.jobs.map((j) => (
-                <div
-                  key={j.id}
-                  className="rounded bg-slate-50 p-1.5 text-[11px]"
-                >
-                  <div className="font-medium text-slate-700">
-                    {j.scheduledTime ? `${j.scheduledTime} · ` : ""}
-                    {j.customer?.customerName ?? j.jobCode}
-                  </div>
-                  <div className="text-slate-400">
-                    {j.assignedTechnicians.length > 0
-                      ? j.assignedTechnicians.map((t) => t.name).join(", ")
-                      : "Unassigned"}
-                  </div>
-                </div>
+                <JobChip key={j.id} job={j} onClick={() => onPickJob(j)} />
               ))
             )}
           </div>
@@ -324,19 +408,23 @@ function WeekGrid({ days }: { days: DaySchedule[] }) {
   );
 }
 
-// --- day -------------------------------------------------------------------
+// --- day (per-worker stacked) ----------------------------------------------
 
-function DayList({
+function DayView({
   day,
   technicians,
   onAssign,
   onReschedule,
+  onPickJob,
 }: {
   day?: DaySchedule;
   technicians: User[];
   onAssign: (job: ScheduledJob, technicianId: string) => void;
   onReschedule: (job: ScheduledJob) => void;
+  onPickJob: (job: ScheduledJob) => void;
 }) {
+  const [grouped, setGrouped] = useState(false);
+
   if (!day || day.jobs.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-400">
@@ -346,55 +434,259 @@ function DayList({
   }
 
   return (
-    <div className="space-y-2">
-      {day.jobs.map((j) => (
-        <div
-          key={j.id}
-          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"
+    <div className="space-y-3">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setGrouped((g) => !g)}
+          className="text-xs font-medium text-brand-600 hover:text-brand-700"
         >
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-slate-800">{j.jobCode}</span>
-              <Badge status={j.status} />
+          {grouped ? "Show as list" : "Group by worker"}
+        </button>
+      </div>
+
+      {grouped ? (
+        <PerWorkerDay day={day} onPickJob={onPickJob} />
+      ) : (
+        <div className="space-y-2">
+          {day.jobs.map((j) => (
+            <div
+              key={j.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4"
+              style={{ borderLeft: `4px solid ${statusCalendarColor(j.status)}` }}
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onPickJob(j)}
+                    className="font-medium text-slate-800 hover:text-brand-600"
+                  >
+                    {j.jobCode}
+                  </button>
+                  <Badge status={j.status} />
+                </div>
+                <div className="text-sm text-slate-500">
+                  {j.scheduledTime ? `${j.scheduledTime}` : "—"}
+                  {endTime(j.scheduledTime, j.estimatedDurationMins)
+                    ? `–${endTime(j.scheduledTime, j.estimatedDurationMins)}`
+                    : ""}
+                  {" · "}
+                  {j.customer?.customerName ?? "—"}
+                  {j.customer?.mobileNumber ? ` · ${j.customer.mobileNumber}` : ""}
+                </div>
+                <div className="mt-1 text-xs text-slate-400">
+                  Crew:{" "}
+                  {j.assignedTechnicians.length > 0
+                    ? j.assignedTechnicians
+                        .map((t) =>
+                          t.id === j.supervisorId ? `${t.name} (lead)` : t.name,
+                        )
+                        .join(", ")
+                    : "Unassigned"}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value=""
+                  onChange={(e) => onAssign(j, e.target.value)}
+                  className="h-9 rounded-lg border border-slate-300 px-2 text-sm"
+                >
+                  <option value="">Add / remove technician…</option>
+                  {technicians.map((t) => {
+                    const inCrew = j.assignedTechnicians.some(
+                      (a) => a.id === t.id,
+                    );
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {inCrew ? `✓ ${t.name} (remove)` : t.name}
+                      </option>
+                    );
+                  })}
+                </select>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => onReschedule(j)}
+                >
+                  Reschedule
+                </Button>
+              </div>
             </div>
-            <div className="text-sm text-slate-500">
-              {j.scheduledTime ? `${j.scheduledTime} · ` : ""}
-              {j.customer?.customerName ?? "—"}
-              {j.customer?.mobileNumber ? ` · ${j.customer.mobileNumber}` : ""}
-            </div>
-            <div className="mt-1 text-xs text-slate-400">
-              Crew:{" "}
-              {j.assignedTechnicians.length > 0
-                ? j.assignedTechnicians.map((t) => t.name).join(", ")
-                : "Unassigned"}
-            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Day jobs stacked in a column per worker (spec §C3). */
+function PerWorkerDay({
+  day,
+  onPickJob,
+}: {
+  day: DaySchedule;
+  onPickJob: (job: ScheduledJob) => void;
+}) {
+  const columns = new Map<string, { name: string; jobs: ScheduledJob[] }>();
+  const unassigned: ScheduledJob[] = [];
+  for (const j of day.jobs) {
+    if (j.assignedTechnicians.length === 0) {
+      unassigned.push(j);
+      continue;
+    }
+    for (const t of j.assignedTechnicians) {
+      const col = columns.get(t.id) ?? { name: t.name, jobs: [] };
+      col.jobs.push(j);
+      columns.set(t.id, col);
+    }
+  }
+  const cols = [...columns.entries()].sort((a, b) =>
+    a[1].name.localeCompare(b[1].name),
+  );
+
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {cols.map(([id, col]) => (
+        <div
+          key={id}
+          className="rounded-xl border border-slate-200 bg-white p-3"
+        >
+          <div className="mb-2 text-sm font-semibold text-slate-700">
+            {col.name}
+            <span className="ml-1 text-xs font-normal text-slate-400">
+              ({col.jobs.length})
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              value=""
-              onChange={(e) => onAssign(j, e.target.value)}
-              className="h-9 rounded-lg border border-slate-300 px-2 text-sm"
-            >
-              <option value="">Add / remove technician…</option>
-              {technicians.map((t) => {
-                const inCrew = j.assignedTechnicians.some((a) => a.id === t.id);
-                return (
-                  <option key={t.id} value={t.id}>
-                    {inCrew ? `✓ ${t.name} (remove)` : t.name}
-                  </option>
-                );
-              })}
-            </select>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onReschedule(j)}
-            >
-              Reschedule
-            </Button>
+          <div className="space-y-1">
+            {col.jobs
+              .slice()
+              .sort((a, b) =>
+                (a.scheduledTime ?? "").localeCompare(b.scheduledTime ?? ""),
+              )
+              .map((j) => (
+                <JobChip key={j.id} job={j} onClick={() => onPickJob(j)} />
+              ))}
           </div>
         </div>
       ))}
+      {unassigned.length > 0 && (
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-3">
+          <div className="mb-2 text-sm font-semibold text-slate-500">
+            Unassigned
+            <span className="ml-1 text-xs font-normal text-slate-400">
+              ({unassigned.length})
+            </span>
+          </div>
+          <div className="space-y-1">
+            {unassigned.map((j) => (
+              <JobChip key={j.id} job={j} onClick={() => onPickJob(j)} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- detail drawer ---------------------------------------------------------
+
+function JobDrawer({
+  job,
+  onClose,
+  onReschedule,
+}: {
+  job: ScheduledJob;
+  onClose: () => void;
+  onReschedule: () => void;
+}) {
+  const end = endTime(job.scheduledTime, job.estimatedDurationMins);
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      <div
+        className="absolute inset-0 bg-slate-900/30"
+        onClick={onClose}
+        aria-hidden
+      />
+      <aside className="relative z-50 flex h-full w-full max-w-sm flex-col gap-4 overflow-y-auto bg-white p-5 shadow-xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-800">
+                {job.jobCode}
+              </h2>
+              <Badge status={job.status} />
+            </div>
+            {job.customer && (
+              <p className="text-sm text-slate-500">
+                {job.customer.customerName}
+                {job.customer.mobileNumber
+                  ? ` · ${job.customer.mobileNumber}`
+                  : ""}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        <dl className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-slate-400">When</dt>
+            <dd className="text-slate-700">
+              {job.scheduledDate
+                ? new Date(job.scheduledDate).toLocaleDateString()
+                : "—"}
+              {job.scheduledTime ? ` · ${job.scheduledTime}` : ""}
+              {end ? `–${end}` : ""}
+            </dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-slate-400">Duration</dt>
+            <dd className="text-slate-700">
+              {job.estimatedDurationMins
+                ? `${job.estimatedDurationMins} min`
+                : "—"}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-400">Crew</dt>
+            <dd className="text-right text-slate-700">
+              {job.assignedTechnicians.length > 0
+                ? job.assignedTechnicians
+                    .map((t) =>
+                      t.id === job.supervisorId ? `${t.name} (lead)` : t.name,
+                    )
+                    .join(", ")
+                : "Unassigned"}
+            </dd>
+          </div>
+        </dl>
+
+        <div className="mt-auto flex flex-col gap-2">
+          <Button variant="secondary" onClick={onReschedule}>
+            Reschedule
+          </Button>
+          <Link
+            href={`${routes.admin.jobs}/${job.id}/edit`}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Open &amp; manage (assign / edit)
+          </Link>
+          <Link
+            href={routes.admin.workApprovals}
+            className="rounded-lg border border-slate-200 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Open work photos
+          </Link>
+        </div>
+      </aside>
     </div>
   );
 }

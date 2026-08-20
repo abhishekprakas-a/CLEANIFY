@@ -34,6 +34,9 @@ export const createBookingSchema = z.object({
   tanks: z.array(tankEntrySchema).min(1, "Add at least one item"),
   scheduledDate: z.coerce.date(),
   scheduledTime: timeSchema,
+  estimatedDurationMins: optionalNumber(
+    z.coerce.number().int().min(15).max(1440).optional(),
+  ),
   specialInstructions: z.string().trim().optional(),
 });
 

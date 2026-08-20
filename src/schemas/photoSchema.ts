@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { photoKind } from "@/constants";
+import { allPhotoCategories } from "@/constants";
 import { geoSchema } from "./customerSchema";
 
 const contentTypeSchema = z
@@ -9,7 +9,7 @@ const contentTypeSchema = z
 /** Step 1: ask for a presigned PUT URL (no DB row yet). */
 export const presignPhotoSchema = z.object({
   jobId: z.string().min(1, "Job is required"),
-  photoType: z.enum(Object.values(photoKind) as [string, ...string[]]),
+  photoType: z.enum(allPhotoCategories as [string, ...string[]]),
   contentType: contentTypeSchema,
 });
 
@@ -19,7 +19,7 @@ export const presignPhotoSchema = z.object({
  */
 export const confirmPhotoSchema = z.object({
   jobId: z.string().min(1),
-  photoType: z.enum(Object.values(photoKind) as [string, ...string[]]),
+  photoType: z.enum(allPhotoCategories as [string, ...string[]]),
   s3Key: z.string().min(1),
   contentType: contentTypeSchema,
   sizeBytes: z.coerce

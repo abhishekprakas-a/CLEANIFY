@@ -1,5 +1,5 @@
 import { dbConnect } from "@/lib/dbConnect";
-import { jobStatus, roles, userStatus } from "@/constants";
+import { doneJobStatuses, jobStatus, roles, userStatus } from "@/constants";
 import { attendanceModel, jobModel, reviewModel, userModel } from "@/models";
 import type { ReportPayload } from "@/types";
 
@@ -150,7 +150,9 @@ export const reportService = {
       };
     });
 
-    const completed = byStatus.get(jobStatus.completed) ?? 0;
+    const completed =
+      (byStatus.get(jobStatus.completed) ?? 0) +
+      (byStatus.get(jobStatus.closed) ?? 0);
     const rate = docs.length ? Math.round((completed / docs.length) * 100) : 0;
 
     return {
@@ -196,7 +198,7 @@ export const reportService = {
       jobModel.aggregate([
         {
           $match: {
-            status: jobStatus.completed,
+            status: { $in: doneJobStatuses },
             ...dateMatch("completedAt", f),
           },
         },
@@ -355,7 +357,7 @@ export const reportService = {
       jobModel.aggregate([
         {
           $match: {
-            status: jobStatus.completed,
+            status: { $in: doneJobStatuses },
             completedAt: { $gte: start, $lt: end },
           },
         },

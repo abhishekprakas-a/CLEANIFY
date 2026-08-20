@@ -39,6 +39,12 @@ export interface ServiceConfig {
    * (each with its own capacity/risk), instead of manual add/remove rows.
    */
   countDriven?: boolean;
+  /**
+   * Default estimated on-site duration in minutes. Seeds the schedule form and
+   * drives end-time / conflict math; editable per job. Placeholder values —
+   * refine with real ops averages.
+   */
+  defaultDurationMins: number;
 }
 
 export const serviceConfig: Record<ServiceType, ServiceConfig> = {
@@ -52,6 +58,7 @@ export const serviceConfig: Record<ServiceType, ServiceConfig> = {
     quantityLabel: "Number of tanks",
     hasRisk: true,
     countDriven: true,
+    defaultDurationMins: 120,
   },
   washroom: {
     label: "Washroom cleaning",
@@ -59,6 +66,7 @@ export const serviceConfig: Record<ServiceType, ServiceConfig> = {
     variantLabel: "Washroom type",
     variantOptions: ["western", "indian", "common", "urinal", "other"],
     quantityLabel: "Count",
+    defaultDurationMins: 90,
   },
   interlock: {
     label: "Interlock cleaning",
@@ -68,6 +76,7 @@ export const serviceConfig: Record<ServiceType, ServiceConfig> = {
     measureLabel: "Area (sq ft)",
     measureUnit: "sq ft",
     quantityLabel: "Quantity",
+    defaultDurationMins: 180,
   },
   solarPanel: {
     label: "Solar panel cleaning",
@@ -77,6 +86,7 @@ export const serviceConfig: Record<ServiceType, ServiceConfig> = {
     measureLabel: "No. of panels",
     measureUnit: "panels",
     quantityLabel: "Sets",
+    defaultDurationMins: 90,
   },
   pressureWashing: {
     label: "Pressure washing",
@@ -86,6 +96,7 @@ export const serviceConfig: Record<ServiceType, ServiceConfig> = {
     measureLabel: "Area (sq ft)",
     measureUnit: "sq ft",
     quantityLabel: "Quantity",
+    defaultDurationMins: 120,
   },
   carWash: {
     label: "Car wash",
@@ -101,9 +112,15 @@ export const serviceConfig: Record<ServiceType, ServiceConfig> = {
       "other",
     ],
     quantityLabel: "No. of vehicles",
+    defaultDurationMins: 60,
   },
 };
 
 export function serviceLabel(t?: string): string {
   return (t && serviceConfig[t as ServiceType]?.label) || "Water tank cleaning";
+}
+
+/** Default estimated duration (minutes) for a service type. */
+export function serviceDefaultDurationMins(t?: string): number {
+  return serviceConfig[t as ServiceType]?.defaultDurationMins ?? 120;
 }
