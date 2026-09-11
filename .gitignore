@@ -8,6 +8,7 @@
 
 # local-only test harness / probes (not tracked in git)
 /src/scripts/e2eTest.ts
+/src/scripts/seedDev.ts
 /src/scripts/_*.ts
 *.e2e.ts
 
@@ -54,3 +55,12 @@ docs
 # local editor/session config + generated reports (not tracked)
 .claude/
 *.docx
+
+# generated documentation deliverables (regenerable outputs — keep out of git;
+# the 4 MB self-contained HTML + the PDF especially bloat the repo)
+/Cleanify-Workflow.html
+/Cleanify-Workflow.pdf
+/workflow-page.html
+/Cleanify-Overview.html
+/Cleanify-Overview-print.html
+*.pdf

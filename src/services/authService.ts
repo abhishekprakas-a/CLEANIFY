@@ -267,6 +267,9 @@ export const authService = {
       phone: input.phone,
       passwordHash,
       role: input.role ?? roles.technician,
+      // Admin-created accounts are usable immediately — never "pending" (which
+      // would block login). Set it explicitly rather than trusting the default.
+      status: userStatus.active,
     });
 
     // Re-read with the default projection so the password hash (select:false)
