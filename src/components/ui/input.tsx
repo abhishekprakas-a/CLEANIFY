@@ -31,8 +31,24 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, id, type, ...props }, ref) => {
     const inputId = id ?? props.name;
     const isPassword = type === "password";
+    const isEmail = type === "email";
     const [reveal, setReveal] = React.useState(false);
     const effectiveType = isPassword && reveal ? "text" : type;
+
+    // Credentials (email + password) must reach the server exactly as typed.
+    // Mobile keyboards otherwise auto-capitalize the first letter, autocorrect,
+    // or add a trailing space — the #1 cause of "the password works for me but
+    // not for the worker". Turn all of that off for these fields. Callers can
+    // still override via props (spread after these).
+    const credentialAttrs =
+      isPassword || isEmail
+        ? {
+            autoCapitalize: "none",
+            autoCorrect: "off",
+            spellCheck: false,
+            ...(isEmail ? { inputMode: "email" as const } : {}),
+          }
+        : {};
 
     return (
       <div className="flex flex-col gap-1">
@@ -55,6 +71,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               error && "border-red-400 focus:border-red-500 focus:ring-red-200",
               className,
             )}
+            {...credentialAttrs}
             {...props}
           />
           {isPassword && (
