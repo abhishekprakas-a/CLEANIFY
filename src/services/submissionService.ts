@@ -78,18 +78,39 @@ function mapSubmission(doc: Record<string, unknown>): Submission {
 
 // --- helpers ---------------------------------------------------------------
 
-/** Admins + the job's supervisor — the people who may approve/are notified. */
-async function approverIds(job: {
-  supervisor?: unknown;
-}): Promise<{ admins: string[]; supervisor?: string }> {
+/**
+ * Admins + the job's supervisor — the people who may approve / are notified.
+ * Scoped to the submission's realm: a dev/test submission only reaches dev
+ * admins, a real submission only reaches real admins — so test activity never
+ * pings the real admin.
+ */
+/**
+ * Realm filter fragment. Dev realm = accounts explicitly flagged `isDev:true`;
+ * real realm = everything else (including legacy records with no `isDev` field),
+ * so the existing production flow is completely unaffected.
+ */
+function realmFilter(isDev: boolean): Record<string, unknown> {
+  return isDev ? { isDev: true } : { isDev: { $ne: true } };
+}
+
+async function approverIds(
+  job: { supervisor?: unknown },
+  isDev: boolean,
+): Promise<{ admins: string[]; supervisor?: string }> {
   const admins = await userModel
-    .find({ role: roles.admin, status: userStatus.active })
+    .find({ role: roles.admin, status: userStatus.active, ...realmFilter(isDev) })
     .select("_id")
     .lean();
   return {
     admins: admins.map((a) => String(a._id)),
     supervisor: job.supervisor ? String(job.supervisor) : undefined,
   };
+}
+
+/** Whether a user is a dev/test account. */
+async function isDevUser(userId: string): Promise<boolean> {
+  const u = await userModel.findById(userId).select("isDev").lean();
+  return Boolean(u?.isDev);
 }
 
 function canApprove(
@@ -171,6 +192,9 @@ export const submissionService = {
       }
     }
 
+    // Dev/test submissions are isolated from real admins (test sandbox).
+    const dev = await isDevUser(user.id);
+
     // Create the submission and link the photos.
     const submission = await jobSubmissionModel.create({
       jobId: job._id,
@@ -180,6 +204,7 @@ export const submissionService = {
       photos: input.photoIds,
       details: input.details,
       status: submissionStatus.pending,
+      isDev: dev,
     });
     await photoModel.updateMany(
       { _id: { $in: input.photoIds } },
@@ -194,8 +219,8 @@ export const submissionService = {
     applyJobTransition(job, nextStatus, user.id, `${type} submitted`);
     await job.save();
 
-    // Notify approvers (admins + supervisor).
-    const { admins, supervisor } = await approverIds(job);
+    // Notify approvers (admins + supervisor) — scoped to the submission's realm.
+    const { admins, supervisor } = await approverIds(job, dev);
     const recipients = supervisor ? [...admins, supervisor] : admins;
     const label = type === submissionType.preWork ? "Pre-work" : "Completion";
     await inAppNotificationService.emitMany(
@@ -245,9 +270,16 @@ export const submissionService = {
     return mapSubmission(doc as Record<string, unknown>);
   },
 
-  async list(query: SubmissionQueryInput): Promise<Submission[]> {
+  async list(
+    query: SubmissionQueryInput,
+    caller: SessionUser,
+  ): Promise<Submission[]> {
     await dbConnect();
-    const filter: Record<string, unknown> = {};
+    // Realm scoping: a dev admin sees only dev/test submissions, a real admin
+    // sees only real ones — so test activity stays hidden from real admins.
+    const filter: Record<string, unknown> = {
+      ...realmFilter(await isDevUser(caller.id)),
+    };
     if (query.status !== "all") filter.status = query.status;
     if (query.jobId) filter.jobId = query.jobId;
     const docs = await jobSubmissionModel
@@ -262,10 +294,11 @@ export const submissionService = {
     return docs.map((d) => mapSubmission(d as Record<string, unknown>));
   },
 
-  async pendingCount(): Promise<number> {
+  async pendingCount(caller: SessionUser): Promise<number> {
     await dbConnect();
     return jobSubmissionModel.countDocuments({
       status: submissionStatus.pending,
+      ...realmFilter(await isDevUser(caller.id)),
     });
   },
 

@@ -15,7 +15,7 @@ interface PresignResult {
 }
 
 /** Largest image we accept for upload (after in-browser compression). */
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // 15 MB
 
 type ItemStatus = "compressing" | "uploading" | "done" | "error";
 interface UploadItem {
@@ -120,10 +120,24 @@ export function PhotoUploader({
         patch(item.key, { status: "compressing", error: undefined });
         const compressed = await compressImage(item.file);
 
+        // HEIC/HEIF that couldn't be transcoded to a web-viewable image stays as
+        // its original type here (iOS normally decodes it to JPEG above). Uploading
+        // raw HEIC would show as a broken image in the approval gallery, so stop it
+        // with a clear message rather than sending something the admin can't view.
+        if (/^image\/hei[cf]/i.test(compressed.contentType)) {
+          patch(item.key, {
+            status: "error",
+            error:
+              "This looks like an iPhone HEIC photo we couldn't process on this device — tap the camera button to take the photo instead.",
+          });
+          return;
+        }
+
         if (compressed.blob.size > MAX_UPLOAD_BYTES) {
           patch(item.key, {
             status: "error",
-            error: "Image is larger than 5 MB — please retake at a lower quality.",
+            error:
+              "Image is larger than 15 MB — please retake at a lower quality.",
           });
           return;
         }

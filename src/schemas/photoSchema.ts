@@ -26,7 +26,7 @@ export const confirmPhotoSchema = z.object({
     .number()
     .int()
     .positive()
-    .max(8 * 1024 * 1024, "Photo exceeds the 8 MB limit")
+    .max(15 * 1024 * 1024, "Photo exceeds the 15 MB limit")
     .optional(),
   width: z.coerce.number().int().positive().optional(),
   height: z.coerce.number().int().positive().optional(),
