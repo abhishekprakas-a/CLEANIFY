@@ -23,8 +23,8 @@ import type {
 } from "@/schemas/photoSchema";
 import type { JobPhotoGroup, Photo, SessionUser } from "@/types";
 
-/** Hard server-side cap on a stored photo (the client compresses to ~5 MB). */
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+/** Hard server-side cap on a stored photo (backstop; the client caps at 15 MB). */
+const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 
 function extFromContentType(contentType: string): string {
   return contentType.split("/")[1]?.toLowerCase() ?? "jpg";
@@ -76,7 +76,7 @@ export const photoService = {
     const actualSize = await getObjectSize(input.s3Key).catch(() => undefined);
     if (actualSize != null && actualSize > MAX_PHOTO_BYTES) {
       await deleteObject(input.s3Key).catch(() => {});
-      throw ApiError.unprocessable("Photo exceeds the 8 MB limit");
+      throw ApiError.unprocessable("Photo exceeds the 15 MB limit");
     }
 
     const photo = await photoModel.create({

@@ -9,6 +9,8 @@ export interface UserDocument {
   passwordHash: string;
   role: string;
   status: string;
+  /** Dev/test account — its activity is isolated from real admins (test sandbox). */
+  isDev?: boolean;
   lastLoginAt?: Date;
   passwordResetTokenHash?: string;
   passwordResetExpiresAt?: Date;
@@ -40,6 +42,7 @@ const userSchema = new Schema<UserDocument>(
       required: true,
       default: userStatus.active,
     },
+    isDev: { type: Boolean, default: false },
     lastLoginAt: { type: Date },
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpiresAt: { type: Date, select: false },

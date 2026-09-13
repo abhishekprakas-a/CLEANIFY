@@ -23,6 +23,8 @@ export interface JobSubmissionDocument {
   reviewedBy?: mongoose.Types.ObjectId;
   reviewedAt?: Date;
   declineReason?: string;
+  /** Submitted by a dev/test account — hidden from real admins (test sandbox). */
+  isDev?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,12 +55,13 @@ const jobSubmissionSchema = new Schema<JobSubmissionDocument>(
     reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
     reviewedAt: { type: Date },
     declineReason: { type: String, trim: true },
+    isDev: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 
 // Approvals queue (pending first, recent first) + per-job lookups.
-jobSubmissionSchema.index({ status: 1, createdAt: -1 });
+jobSubmissionSchema.index({ isDev: 1, status: 1, createdAt: -1 });
 jobSubmissionSchema.index({ jobId: 1, type: 1, createdAt: -1 });
 
 export const jobSubmissionModel: Model<JobSubmissionDocument> =

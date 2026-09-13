@@ -8,17 +8,17 @@ import { roles } from "@/constants";
 
 export async function GET(req: NextRequest) {
   return handleRoute(async () => {
-    await requireRole([roles.admin]);
+    const user = await requireRole([roles.admin]);
     const sp = req.nextUrl.searchParams;
     // Lightweight badge count (no populate).
     if (sp.get("count") === "1") {
-      return ok({ count: await submissionService.pendingCount() });
+      return ok({ count: await submissionService.pendingCount(user) });
     }
     const query = submissionQuerySchema.parse({
       status: sp.get("status") ?? undefined,
       jobId: sp.get("jobId") ?? undefined,
     });
-    const items = await submissionService.list(query);
+    const items = await submissionService.list(query, user);
     return ok(items);
   });
 }
