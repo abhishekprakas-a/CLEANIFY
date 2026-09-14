@@ -48,9 +48,9 @@ export async function compressImage(
   );
   if (!blob) return { blob: file, contentType: file.type };
 
-  // Only keep the compressed version if it's actually smaller.
-  if (blob.size >= file.size) {
-    return { blob: file, contentType: file.type, width, height };
-  }
+  // Always use the re-encoded JPEG when we could render the image. This
+  // guarantees a viewable, server-accepted content-type — some phones report
+  // "image/jpg" or an empty MIME type, and HEIC gets transcoded to JPEG here —
+  // even if the JPEG isn't strictly smaller (it's downscaled, so still small).
   return { blob, contentType: "image/jpeg", width, height };
 }
