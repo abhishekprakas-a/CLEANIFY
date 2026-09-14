@@ -120,15 +120,16 @@ export function PhotoUploader({
         patch(item.key, { status: "compressing", error: undefined });
         const compressed = await compressImage(item.file);
 
-        // HEIC/HEIF that couldn't be transcoded to a web-viewable image stays as
-        // its original type here (iOS normally decodes it to JPEG above). Uploading
-        // raw HEIC would show as a broken image in the approval gallery, so stop it
-        // with a clear message rather than sending something the admin can't view.
-        if (/^image\/hei[cf]/i.test(compressed.contentType)) {
+        // The image is uploadable only if we ended up with a web-viewable type
+        // the server accepts (JPEG/PNG/WebP). If compression couldn't decode the
+        // file it stays as its original type — HEIC/HEIF, "image/jpg", an empty
+        // MIME type, etc. — which the server rejects (400) and the admin can't
+        // view. Stop it here with a clear message instead.
+        if (!/^image\/(jpeg|png|webp)$/i.test(compressed.contentType)) {
           patch(item.key, {
             status: "error",
             error:
-              "This looks like an iPhone HEIC photo we couldn't process on this device — tap the camera button to take the photo instead.",
+              "We couldn't process this photo (it may be an iPhone HEIC or an unusual format) — tap the camera button to take the photo instead.",
           });
           return;
         }
