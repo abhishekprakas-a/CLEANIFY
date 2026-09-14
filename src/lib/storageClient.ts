@@ -22,6 +22,13 @@ export const storageClient = new S3Client({
   // Bound retry latency: the server-side HEAD/DELETE calls are best-effort, so
   // don't let a persistent error retry-storm and block a request.
   maxAttempts: 2,
+  // AWS SDK >= 3.729 adds a default CRC32 checksum to PutObject. On a PRESIGNED
+  // upload URL that checksum is computed for an empty body and baked into the
+  // URL, so when the browser PUTs the real bytes S3 rejects it with a 400
+  // (checksum mismatch). "WHEN_REQUIRED" stops the SDK from adding it unless a
+  // checksum is explicitly requested, which restores browser presigned uploads.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
   credentials: {
     accessKeyId: storage.accessKeyId,
     secretAccessKey: storage.secretAccessKey,
