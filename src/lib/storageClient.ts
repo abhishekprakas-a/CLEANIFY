@@ -55,6 +55,15 @@ export async function createPresignedUpload(
   s3Key: string,
   contentType: string,
 ): Promise<PresignResult> {
+  // Fail clearly if the bucket/credentials aren't configured. Without this the
+  // SDK still signs a URL with an empty access key, which the browser can't tell
+  // apart from any other 400 — surfacing here points straight at the real cause.
+  if (!storage.accessKeyId || !storage.secretAccessKey || !storage.bucket) {
+    throw new Error(
+      "S3 storage is not configured — set S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY and S3_BUCKET on the server.",
+    );
+  }
+
   const command = new PutObjectCommand({
     Bucket: storage.bucket,
     Key: s3Key,
