@@ -8,7 +8,7 @@ import { roles, routes } from "@/constants";
  * group rules. Page requests redirect to /login; API requests get 401/403.
  * Service/route handlers re-assert the role as defence in depth.
  */
-const technicianPrefixes = ["/technician", "/api/attendance"];
+const technicianPrefixes = ["/technician", "/api/attendance", "/api/workday"];
 const adminPrefixes = [
   routes.admin.dashboard,
   routes.admin.bookingDesk,

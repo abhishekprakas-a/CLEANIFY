@@ -4,8 +4,13 @@
  * supervisor) approves or declines it. Approval gates the job lifecycle.
  */
 export const submissionType = {
+  // Per-site checks (tied to a job).
   preWork: "preWork",
   completion: "completion",
+  // Day-level checks (tied to the technician's day, no job). Machinery + uniform
+  // at the start of the day and again on return to base.
+  startOfDay: "startOfDay",
+  endOfDay: "endOfDay",
 } as const;
 
 export type SubmissionType =
@@ -47,9 +52,24 @@ export const allPhotoCategories: PhotoCategory[] =
 
 /** Categories a technician must supply for each submission type. */
 export const requiredPhotoCategories: Record<SubmissionType, PhotoCategory[]> = {
-  preWork: [photoCategory.machinery, photoCategory.uniformMask],
+  // Per-site: just before / after cleaning (machinery + uniform moved to the day
+  // level — start-of-day and at-base checks).
+  preWork: [photoCategory.before],
   completion: [photoCategory.completion],
+  // Day-level: machinery in order + staff in uniform/mask.
+  startOfDay: [photoCategory.machinery, photoCategory.uniformMask],
+  endOfDay: [photoCategory.machinery, photoCategory.uniformMask],
 };
+
+/** Day-level checks (no job) vs per-site checks (tied to a job). */
+export const dayCheckTypes: SubmissionType[] = [
+  submissionType.startOfDay,
+  submissionType.endOfDay,
+];
+
+export function isDayCheckType(t: string): boolean {
+  return dayCheckTypes.includes(t as SubmissionType);
+}
 
 /** Minimum number of completion photos (OQ-4 default). */
 export const minCompletionPhotos = 2;

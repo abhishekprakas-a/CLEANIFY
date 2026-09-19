@@ -52,7 +52,8 @@ export function PhotoUploader({
   onCountChange,
   onPhotosChange,
 }: {
-  jobId: string;
+  /** Job/site photos are keyed to a job; omit for day-level (start/end) checks. */
+  jobId?: string;
   photoType: "before" | "after" | "machinery" | "uniformMask" | "completion";
   /** Button text override, e.g. "machinery" → "Add machinery photos". */
   label?: string;
@@ -68,8 +69,15 @@ export function PhotoUploader({
 
   const reload = useCallback(async () => {
     try {
-      const all = await api.get<Photo[]>(`/api/photos?job=${jobId}`);
-      const mine = all.filter((p) => p.photoType === photoType);
+      const url = jobId
+        ? `/api/photos?job=${jobId}`
+        : `/api/photos?scope=workday&type=${photoType}`;
+      const all = await api.get<Photo[]>(url);
+      // Job mode returns all the job's photos (filter to this category); workday
+      // mode already returns only this worker's photos of this category.
+      const mine = jobId
+        ? all.filter((p) => p.photoType === photoType)
+        : all;
       setServerPhotos(mine);
       onCountChange?.(mine.length);
       onPhotosChange?.(mine);
@@ -144,7 +152,7 @@ export function PhotoUploader({
         }
 
         const presign = await api.post<PresignResult>("/api/photos/presign", {
-          jobId,
+          ...(jobId ? { jobId } : {}),
           photoType,
           contentType: compressed.contentType,
         });
@@ -161,7 +169,7 @@ export function PhotoUploader({
 
         const geo = await getLocation();
         await api.post("/api/photos/confirm", {
-          jobId,
+          ...(jobId ? { jobId } : {}),
           photoType,
           s3Key: presign.s3Key,
           photoUrl: presign.publicUrl,

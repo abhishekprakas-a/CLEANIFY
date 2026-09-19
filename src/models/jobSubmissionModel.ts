@@ -12,8 +12,9 @@ import {
  */
 export interface JobSubmissionDocument {
   _id: mongoose.Types.ObjectId;
-  jobId: mongoose.Types.ObjectId;
-  type: string; // preWork | completion
+  /** Set for per-site checks (preWork/completion); absent for day-level checks. */
+  jobId?: mongoose.Types.ObjectId;
+  type: string; // preWork | completion | startOfDay | endOfDay
   submittedBy: mongoose.Types.ObjectId;
   submittedAt: Date;
   photos: mongoose.Types.ObjectId[];
@@ -34,7 +35,6 @@ const jobSubmissionSchema = new Schema<JobSubmissionDocument>(
     jobId: {
       type: Schema.Types.ObjectId,
       ref: "Job",
-      required: true,
       index: true,
     },
     type: { type: String, enum: allSubmissionTypes, required: true },

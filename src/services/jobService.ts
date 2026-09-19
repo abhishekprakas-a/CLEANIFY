@@ -4,6 +4,7 @@ import { toDto, toDtoList } from "@/lib/serialize";
 import { buildMeta } from "@/lib/pagination";
 import { applyJobTransition } from "@/lib/jobWorkflow";
 import { recordAudit } from "@/lib/audit";
+import { submissionService } from "./submissionService";
 import {
   appConfig,
   bookingStatus,
@@ -288,6 +289,15 @@ export const jobService = {
         if (!checkedIn) {
           throw ApiError.unprocessable(
             "You must check in before starting a job",
+          );
+        }
+        // Route gate: the start-of-day (machinery + uniform) check must be
+        // approved before the technician can begin any site that day.
+        const startApproved =
+          await submissionService.hasApprovedStartToday(user.id);
+        if (!startApproved) {
+          throw ApiError.unprocessable(
+            "Your start-of-day check must be approved before you can start a site",
           );
         }
       }

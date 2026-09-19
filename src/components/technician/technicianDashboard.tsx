@@ -5,13 +5,14 @@ import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceCard } from "@/components/technician/attendanceCard";
+import { WorkDayPanel } from "@/components/technician/workDayPanel";
 import { JobList } from "@/components/technician/jobList";
 import { InstallButton } from "@/components/pwa/installButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssignedJobs } from "@/hooks/useAssignedJobs";
 import { api } from "@/hooks/useApi";
 import { routes } from "@/constants";
-import type { TechnicianDashboardData } from "@/types";
+import type { TechnicianDashboardData, WorkDayStatus } from "@/types";
 
 const statusShort: Record<string, string> = {
   pending: "Pending",
@@ -27,6 +28,8 @@ export function TechnicianDashboard() {
   const { user } = useAuth();
   const { jobs, loading, fromCache } = useAssignedJobs();
   const [summary, setSummary] = useState<TechnicianDashboardData | null>(null);
+  const [dayStatus, setDayStatus] = useState<WorkDayStatus | null>(null);
+  const sitesLocked = dayStatus ? !dayStatus.sitesUnlocked : false;
 
   const loadSummary = useCallback(() => {
     api
@@ -71,6 +74,14 @@ export function TechnicianDashboard() {
       </div>
 
       <AttendanceCard />
+
+      <WorkDayPanel onStatus={setDayStatus} />
+
+      {sitesLocked && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+          🔒 Your sites are locked until your start-of-day check is approved.
+        </div>
+      )}
 
       {/* Counts */}
       <div className="grid grid-cols-3 gap-3">

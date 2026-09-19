@@ -6,9 +6,12 @@ const contentTypeSchema = z
   .string()
   .regex(/^image\/(jpeg|png|webp|heic)$/i, "Only image uploads are allowed");
 
-/** Step 1: ask for a presigned PUT URL (no DB row yet). */
+/**
+ * Step 1: ask for a presigned PUT URL (no DB row yet). `jobId` is omitted for
+ * day-level (start/end-of-day) check photos, which aren't tied to a job.
+ */
 export const presignPhotoSchema = z.object({
-  jobId: z.string().min(1, "Job is required"),
+  jobId: z.string().min(1).optional(),
   photoType: z.enum(allPhotoCategories as [string, ...string[]]),
   contentType: contentTypeSchema,
 });
@@ -18,7 +21,7 @@ export const presignPhotoSchema = z.object({
  * URL is derived server-side from `s3Key`, never taken from the client.
  */
 export const confirmPhotoSchema = z.object({
-  jobId: z.string().min(1),
+  jobId: z.string().min(1).optional(),
   photoType: z.enum(allPhotoCategories as [string, ...string[]]),
   s3Key: z.string().min(1),
   contentType: contentTypeSchema,

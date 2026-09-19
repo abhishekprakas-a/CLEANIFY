@@ -50,22 +50,29 @@ export const photoService = {
     user: SessionUser,
   ): Promise<PresignResult> {
     await dbConnect();
-    await assertOwnedJob(input.jobId, user);
 
     const ext = extFromContentType(input.contentType);
-    const s3Key = `jobs/${input.jobId}/${input.photoType}/${Date.now()}-${Math.round(
-      Math.random() * 1e6,
-    )}.${ext}`;
+    const rand = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
+    // Job/site photo → keyed under the job (must be assigned to the worker).
+    // Day-level check photo (no jobId) → keyed under the worker's own space.
+    if (input.jobId) {
+      await assertOwnedJob(input.jobId, user);
+      const s3Key = `jobs/${input.jobId}/${input.photoType}/${rand}.${ext}`;
+      return createPresignedUpload(s3Key, input.contentType);
+    }
+    const s3Key = `workday/${user.id}/${input.photoType}/${rand}.${ext}`;
     return createPresignedUpload(s3Key, input.contentType);
   },
 
   /** Create the photo record after a successful upload, and attach it to the job. */
   async confirm(input: ConfirmPhotoInput, user: SessionUser): Promise<Photo> {
     await dbConnect();
-    await assertOwnedJob(input.jobId, user);
+    if (input.jobId) await assertOwnedJob(input.jobId, user);
 
-    // The key must belong to this job/gate (the client echoes what presign gave).
-    const expectedPrefix = `jobs/${input.jobId}/${input.photoType}/`;
+    // The key must belong to this job/worker (the client echoes what presign gave).
+    const expectedPrefix = input.jobId
+      ? `jobs/${input.jobId}/${input.photoType}/`
+      : `workday/${user.id}/${input.photoType}/`;
     if (!input.s3Key.startsWith(expectedPrefix)) {
       throw ApiError.badRequest("Invalid upload key");
     }
@@ -100,8 +107,9 @@ export const photoService = {
     // Only the legacy before/after kinds mirror onto the job arrays; the v2
     // submission categories are linked via `submissionId` instead.
     if (
-      input.photoType === photoKind.before ||
-      input.photoType === photoKind.after
+      input.jobId &&
+      (input.photoType === photoKind.before ||
+        input.photoType === photoKind.after)
     ) {
       const field =
         input.photoType === photoKind.before ? "beforePhotos" : "afterPhotos";
@@ -169,6 +177,31 @@ export const photoService = {
   async listByJob(jobId: string): Promise<Photo[]> {
     await dbConnect();
     const docs = await photoModel.find({ jobId }).sort({ createdAt: 1 }).lean();
+    return toDtoList<Photo>(docs);
+  },
+
+  /**
+   * The worker's own day-level (job-less) check photos of a given category that
+   * haven't been bundled into a submission yet, uploaded today. Powers the
+   * start/end-of-day check uploader.
+   */
+  async listWorkdayPhotos(
+    user: SessionUser,
+    photoType: string,
+  ): Promise<Photo[]> {
+    await dbConnect();
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const docs = await photoModel
+      .find({
+        uploadedBy: user.id,
+        jobId: { $exists: false },
+        photoType,
+        submissionId: { $exists: false },
+        createdAt: { $gte: start },
+      })
+      .sort({ createdAt: 1 })
+      .lean();
     return toDtoList<Photo>(docs);
   },
 

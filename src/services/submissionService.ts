@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/apiError";
 import { recordAudit } from "@/lib/audit";
 import { applyJobTransition } from "@/lib/jobWorkflow";
 import {
+  isDayCheckType,
   jobStatus,
   minCompletionPhotos,
   notificationType,
@@ -24,7 +25,23 @@ import type {
   CreateSubmissionInput,
   SubmissionQueryInput,
 } from "@/schemas/submissionSchema";
-import type { Submission, SessionUser } from "@/types";
+import type {
+  DayCheckState,
+  Submission,
+  SessionUser,
+  WorkDayStatus,
+} from "@/types";
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+const dayCheckLabel: Record<string, string> = {
+  startOfDay: "Start-of-day check",
+  endOfDay: "End-of-day (base) check",
+};
 
 // --- mapping ---------------------------------------------------------------
 
@@ -173,11 +190,15 @@ export const submissionService = {
 
     const cats = new Set(photos.map((p) => p.photoType));
     if (type === submissionType.preWork) {
-      if (!cats.has(photoCategory.machinery)) {
-        throw ApiError.unprocessable("A machinery photo is required");
-      }
-      if (!cats.has(photoCategory.uniformMask)) {
-        throw ApiError.unprocessable("A uniform / mask photo is required");
+      // Per-site pre-work is now just "before cleaning" photos (machinery +
+      // uniform moved to the day-level start/end checks).
+      const beforeCount = photos.filter(
+        (p) => p.photoType === photoCategory.before,
+      ).length;
+      if (beforeCount < 1) {
+        throw ApiError.unprocessable(
+          "At least one before-cleaning photo is required",
+        );
       }
     } else {
       const completionCount = photos.filter(
@@ -309,6 +330,39 @@ export const submissionService = {
     if (submission.status !== submissionStatus.pending) {
       throw ApiError.conflict(`This submission is already ${submission.status}`);
     }
+
+    // Day-level check (start/end of day) — no job, admin-only, no job transition.
+    if (isDayCheckType(submission.type)) {
+      if (user.role !== roles.admin) {
+        throw ApiError.forbidden("Only an admin can approve this check");
+      }
+      submission.status = submissionStatus.approved;
+      submission.reviewedBy = user.id as never;
+      submission.reviewedAt = new Date();
+      await submission.save();
+
+      await inAppNotificationService.emit({
+        userId: String(submission.submittedBy),
+        type: notificationType.dayCheckApproved,
+        message: `${dayCheckLabel[submission.type] ?? "Check"} approved${
+          submission.type === submissionType.startOfDay
+            ? " — you can start your sites"
+            : ""
+        }`,
+        url: "/technician",
+        push: { title: "Check approved" },
+      });
+      await recordAudit({
+        actor: user.id,
+        actorName: user.name,
+        action: `submission.${submission.type}.approve`,
+        entityType: "user",
+        entityId: String(submission.submittedBy),
+        meta: { submissionId: String(submission._id) },
+      });
+      return submissionService.getById(id, user);
+    }
+
     const job = await jobModel.findById(submission.jobId);
     if (!job) throw ApiError.notFound("Job not found");
     if (!canApprove(user, job)) {
@@ -369,6 +423,36 @@ export const submissionService = {
     if (submission.status !== submissionStatus.pending) {
       throw ApiError.conflict(`This submission is already ${submission.status}`);
     }
+
+    // Day-level check — no job, admin-only, no job transition; worker re-uploads.
+    if (isDayCheckType(submission.type)) {
+      if (user.role !== roles.admin) {
+        throw ApiError.forbidden("Only an admin can decline this check");
+      }
+      submission.status = submissionStatus.declined;
+      submission.reviewedBy = user.id as never;
+      submission.reviewedAt = new Date();
+      submission.declineReason = reason;
+      await submission.save();
+
+      await inAppNotificationService.emit({
+        userId: String(submission.submittedBy),
+        type: notificationType.dayCheckDeclined,
+        message: `${dayCheckLabel[submission.type] ?? "Check"} declined: ${reason}`,
+        url: "/technician",
+        push: { title: "Check declined" },
+      });
+      await recordAudit({
+        actor: user.id,
+        actorName: user.name,
+        action: `submission.${submission.type}.decline`,
+        entityType: "user",
+        entityId: String(submission.submittedBy),
+        meta: { submissionId: String(submission._id), reason },
+      });
+      return submissionService.getById(id, user);
+    }
+
     const job = await jobModel.findById(submission.jobId);
     if (!job) throw ApiError.notFound("Job not found");
     if (!canApprove(user, job)) {
@@ -413,5 +497,129 @@ export const submissionService = {
     });
 
     return submissionService.getById(id, user);
+  },
+
+  /**
+   * Technician submits a day-level check (start-of-day at base, or end-of-day on
+   * return). Requires a machinery + a uniform/mask photo. No job is involved;
+   * only admins approve. One check of each type per day.
+   */
+  async submitDayCheck(
+    type: SubmissionType,
+    photoIds: string[],
+    user: SessionUser,
+  ): Promise<Submission> {
+    await dbConnect();
+    if (!isDayCheckType(type)) {
+      throw ApiError.badRequest("Invalid day-check type");
+    }
+
+    const existing = await jobSubmissionModel
+      .findOne({
+        submittedBy: user.id,
+        type,
+        createdAt: { $gte: startOfToday() },
+        status: { $in: [submissionStatus.pending, submissionStatus.approved] },
+      })
+      .lean();
+    if (existing) {
+      throw ApiError.conflict(
+        `You've already submitted the ${dayCheckLabel[type] ?? "check"} today`,
+      );
+    }
+
+    const photos = await photoModel
+      .find({
+        _id: { $in: photoIds },
+        uploadedBy: user.id,
+        jobId: { $exists: false },
+      })
+      .lean();
+    if (photos.length !== photoIds.length) {
+      throw ApiError.badRequest("Some photos were not found");
+    }
+    const cats = new Set(photos.map((p) => p.photoType));
+    if (!cats.has(photoCategory.machinery)) {
+      throw ApiError.unprocessable("A machinery photo is required");
+    }
+    if (!cats.has(photoCategory.uniformMask)) {
+      throw ApiError.unprocessable("A uniform / mask photo is required");
+    }
+
+    const dev = await isDevUser(user.id);
+    const submission = await jobSubmissionModel.create({
+      type,
+      submittedBy: user.id,
+      submittedAt: new Date(),
+      photos: photoIds,
+      status: submissionStatus.pending,
+      isDev: dev,
+    });
+    await photoModel.updateMany(
+      { _id: { $in: photoIds } },
+      { $set: { submissionId: submission._id } },
+    );
+
+    const { admins } = await approverIds({}, dev);
+    await inAppNotificationService.emitMany(
+      admins.filter((id) => id !== user.id),
+      {
+        type: notificationType.dayCheckSubmitted,
+        message: `${dayCheckLabel[type]} submitted by ${user.name} — needs approval`,
+        url: "/work-approvals",
+        push: { title: "Check needs approval" },
+      },
+    );
+    await recordAudit({
+      actor: user.id,
+      actorName: user.name,
+      action: `submission.${type}.submit`,
+      entityType: "user",
+      entityId: user.id,
+      meta: { submissionId: String(submission._id) },
+    });
+    return submissionService.getById(String(submission._id), user);
+  },
+
+  /** The technician's day-level check state for today (drives the route UI). */
+  async today(user: SessionUser): Promise<WorkDayStatus> {
+    await dbConnect();
+    const subs = await jobSubmissionModel
+      .find({
+        submittedBy: user.id,
+        type: { $in: [submissionType.startOfDay, submissionType.endOfDay] },
+        createdAt: { $gte: startOfToday() },
+      })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const toState = (t: string): DayCheckState => {
+      const s = subs.find((x) => x.type === t);
+      if (!s) return { status: "none" };
+      return {
+        id: String(s._id),
+        status: s.status as DayCheckState["status"],
+        declineReason: s.declineReason,
+        submittedAt: s.submittedAt
+          ? new Date(s.submittedAt).toISOString()
+          : new Date(s.createdAt).toISOString(),
+      };
+    };
+
+    const start = toState(submissionType.startOfDay);
+    const end = toState(submissionType.endOfDay);
+    return { start, end, sitesUnlocked: start.status === "approved" };
+  },
+
+  /** Gate helper: has this technician's start-of-day check been approved today? */
+  async hasApprovedStartToday(userId: string): Promise<boolean> {
+    await dbConnect();
+    const exists = await jobSubmissionModel.exists({
+      submittedBy: userId,
+      type: submissionType.startOfDay,
+      status: submissionStatus.approved,
+      createdAt: { $gte: startOfToday() },
+    });
+    return Boolean(exists);
   },
 };

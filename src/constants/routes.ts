@@ -65,6 +65,8 @@ export const routes = {
     reports: "/api/reports",
     submissions: "/api/submissions",
     notifications: "/api/notifications",
+    workdayToday: "/api/workday/today",
+    workdayCheck: "/api/workday/check",
   },
 } as const;
 
