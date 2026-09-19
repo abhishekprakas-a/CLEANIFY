@@ -8,10 +8,16 @@ import { roles } from "@/constants";
 
 export async function GET(req: NextRequest) {
   return handleRoute(async () => {
-    await requireRole([roles.admin, roles.technician]);
-    const job = req.nextUrl.searchParams.get("job");
+    const user = await requireRole([roles.admin, roles.technician]);
+    const sp = req.nextUrl.searchParams;
+    // Day-level (job-less) check photos for the current worker: ?scope=workday&type=machinery
+    if (sp.get("scope") === "workday") {
+      const type = sp.get("type");
+      if (!type) throw ApiError.badRequest("type query param is required");
+      return ok(await photoService.listWorkdayPhotos(user, type));
+    }
+    const job = sp.get("job");
     if (!job) throw ApiError.badRequest("job query param is required");
-    const photos = await photoService.listByJob(job);
-    return ok(photos);
+    return ok(await photoService.listByJob(job));
   });
 }

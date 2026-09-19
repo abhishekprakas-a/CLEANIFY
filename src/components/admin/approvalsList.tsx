@@ -19,8 +19,19 @@ const CATEGORY_LABEL: Record<string, string> = {
   after: "After",
 };
 
+const TYPE_LABEL: Record<string, string> = {
+  preWork: "Before photos",
+  completion: "Completion",
+  startOfDay: "Start-of-day check",
+  endOfDay: "End-of-day (base) check",
+};
+
 function typeLabel(t: string): string {
-  return t === submissionType.preWork ? "Pre-work check" : "Completion";
+  return TYPE_LABEL[t] ?? t;
+}
+
+function isDayCheck(t: string): boolean {
+  return t === submissionType.startOfDay || t === submissionType.endOfDay;
 }
 
 export function ApprovalsList({
@@ -100,15 +111,19 @@ export function ApprovalsList({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-medium text-slate-800">
-                  {s.job?.jobCode ?? "—"}
+                  {isDayCheck(s.type)
+                    ? (s.submittedBy?.name ?? "Technician")
+                    : (s.job?.jobCode ?? "—")}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
                   {typeLabel(s.type)}
                 </span>
               </div>
               <p className="text-sm text-slate-500">
-                {s.job?.customerName ?? ""}
-                {s.submittedBy ? ` · by ${s.submittedBy.name}` : ""}
+                {isDayCheck(s.type) ? "Day check" : (s.job?.customerName ?? "")}
+                {s.submittedBy && !isDayCheck(s.type)
+                  ? ` · by ${s.submittedBy.name}`
+                  : ""}
                 {" · "}
                 {new Date(s.submittedAt).toLocaleString()}
               </p>

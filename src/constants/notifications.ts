@@ -13,6 +13,10 @@ export const notificationType = {
   completionApproved: "completionApproved",
   completionDeclined: "completionDeclined",
   jobCancelled: "jobCancelled",
+  // Day-level checks (start-of-day / at-base).
+  dayCheckSubmitted: "dayCheckSubmitted",
+  dayCheckApproved: "dayCheckApproved",
+  dayCheckDeclined: "dayCheckDeclined",
 } as const;
 
 export type NotificationType =

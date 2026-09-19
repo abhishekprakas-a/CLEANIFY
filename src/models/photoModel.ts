@@ -12,7 +12,8 @@ export interface PhotoMetadata {
 
 export interface PhotoDocument {
   _id: mongoose.Types.ObjectId;
-  jobId: mongoose.Types.ObjectId;
+  /** Set for job/site photos; absent for day-level (start/end-of-day) check photos. */
+  jobId?: mongoose.Types.ObjectId;
   photoType: string; // before | after | machinery | uniformMask | completion
   /** Set when the photo belongs to a pre-work / completion submission. */
   submissionId?: mongoose.Types.ObjectId;
@@ -45,7 +46,7 @@ const metadataSchema = new Schema<PhotoMetadata>(
 
 const photoSchema = new Schema<PhotoDocument>(
   {
-    jobId: { type: Schema.Types.ObjectId, ref: "Job", required: true },
+    jobId: { type: Schema.Types.ObjectId, ref: "Job" },
     photoType: { type: String, enum: allPhotoCategories, required: true },
     submissionId: { type: Schema.Types.ObjectId, ref: "JobSubmission" },
     photoUrl: { type: String, required: true },

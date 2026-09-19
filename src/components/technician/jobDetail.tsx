@@ -46,8 +46,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [machineryPhotos, setMachineryPhotos] = useState<Photo[]>([]);
-  const [uniformPhotos, setUniformPhotos] = useState<Photo[]>([]);
+  const [beforePhotos, setBeforePhotos] = useState<Photo[]>([]);
   const [completionPhotos, setCompletionPhotos] = useState<Photo[]>([]);
   const [notes, setNotes] = useState("");
   const [version, setVersion] = useState(0);
@@ -236,42 +235,29 @@ export function JobDetail({ jobId }: { jobId: string }) {
 
       {status === jobStatus.reachedSite && (
         <Card>
-          <CardTitle>Step 2 — Pre-work check</CardTitle>
+          <CardTitle>Step 2 — Before-cleaning photos</CardTitle>
           <p className="mb-3 mt-1 text-sm text-slate-500">
-            Photograph the machinery (in order) and yourself in uniform/mask,
-            then submit for approval. You can start only after it&apos;s approved.
-          </p>
-          <p className="mb-1 text-xs font-medium text-slate-600">
-            Machinery {machineryPhotos.length > 0 ? "✓" : "(required)"}
+            Photograph the {itemNoun} before cleaning, then submit for approval.
+            You can start only after it&apos;s approved. (Machinery &amp; uniform
+            were checked at base.)
           </p>
           <PhotoUploader
             jobId={jobId}
-            photoType="machinery"
-            label="machinery"
-            onPhotosChange={setMachineryPhotos}
-          />
-          <p className="mb-1 mt-3 text-xs font-medium text-slate-600">
-            Uniform / mask {uniformPhotos.length > 0 ? "✓" : "(required)"}
-          </p>
-          <PhotoUploader
-            jobId={jobId}
-            photoType="uniformMask"
-            label="uniform / mask"
-            onPhotosChange={setUniformPhotos}
+            photoType="before"
+            label="before-cleaning"
+            onPhotosChange={setBeforePhotos}
           />
           <Button
             className="mt-4 w-full"
-            disabled={
-              busy || machineryPhotos.length < 1 || uniformPhotos.length < 1
-            }
+            disabled={busy || beforePhotos.length < 1}
             onClick={() =>
-              submit("preWork", [
-                ...machineryPhotos.map((p) => p.id),
-                ...uniformPhotos.map((p) => p.id),
-              ])
+              submit(
+                "preWork",
+                beforePhotos.map((p) => p.id),
+              )
             }
           >
-            Submit pre-work for approval
+            Submit before-photos for approval
           </Button>
         </Card>
       )}
@@ -279,7 +265,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
       {status === jobStatus.preWorkPendingApproval && (
         <Card>
           <p className="text-center text-sm font-medium text-amber-700">
-            ⏳ Pre-work submitted — waiting for approval before you can start.
+            ⏳ Before-photos submitted — waiting for approval before you can start.
           </p>
         </Card>
       )}

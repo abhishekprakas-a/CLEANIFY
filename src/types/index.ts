@@ -254,9 +254,24 @@ export interface SubmissionPhoto {
   photoUrl: string;
 }
 
+/** A technician's day-level check state (start-of-day / at-base). */
+export interface DayCheckState {
+  id?: Id;
+  status: "none" | "pending" | "approved" | "declined";
+  declineReason?: string;
+  submittedAt?: string;
+}
+
+export interface WorkDayStatus {
+  start: DayCheckState;
+  end: DayCheckState;
+  /** Sites are unlocked once the start-of-day check is approved. */
+  sitesUnlocked: boolean;
+}
+
 export interface Submission {
   id: Id;
-  type: string; // preWork | completion
+  type: string; // preWork | completion | startOfDay | endOfDay
   status: string; // pending | approved | declined
   submittedAt: string;
   reviewedAt?: string;
