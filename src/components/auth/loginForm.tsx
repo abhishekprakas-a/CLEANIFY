@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/hooks/useApi";
@@ -14,7 +14,6 @@ import { roleHomeRoute, routes } from "@/constants";
 import type { AuthenticatedUser } from "@/types";
 
 export function LoginForm() {
-  const router = useRouter();
   const search = useSearchParams();
   const setUser = useAuthStore((s) => s.setUser);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -35,8 +34,10 @@ export function LoginForm() {
       setUser(user);
       const next =
         search.get("next") || roleHomeRoute[user.role] || routes.home;
-      router.replace(next);
-      router.refresh();
+      // Hard navigation: guarantees the destination renders with the fresh auth
+      // cookie on the first press (a soft router.replace can show the prefetched
+      // logged-out page and need a second tap).
+      window.location.assign(next);
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Login failed");
     }
