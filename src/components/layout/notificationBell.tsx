@@ -34,20 +34,23 @@ export function NotificationBell() {
       .catch(() => {});
   }, []);
 
-  // Initial load + light polling — but only while the tab is visible, so a
-  // backgrounded tab makes no recurring calls. Refreshes when it returns.
+  // Initial load + polling while the tab is visible (a backgrounded tab makes no
+  // calls). 20s keeps new-job assignments timely for field workers; it also
+  // refreshes instantly whenever the app is brought back to the foreground.
   useEffect(() => {
     load();
     const id = setInterval(() => {
       if (document.visibilityState === "visible") load();
-    }, 60_000);
+    }, 20_000);
     const onVisible = () => {
       if (document.visibilityState === "visible") load();
     };
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
   }, [load]);
 

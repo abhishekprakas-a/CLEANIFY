@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AttendanceCard } from "@/components/technician/attendanceCard";
+import { PushEnableBanner } from "@/components/pwa/pushEnableBanner";
 import { WorkDayPanel } from "@/components/technician/workDayPanel";
 import { JobList } from "@/components/technician/jobList";
 import { InstallButton } from "@/components/pwa/installButton";
@@ -72,6 +73,8 @@ export function TechnicianDashboard() {
         </div>
         <InstallButton />
       </div>
+
+      <PushEnableBanner />
 
       <AttendanceCard />
 
