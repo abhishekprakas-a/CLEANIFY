@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '18' # Update to match your Next.js project's Node version
+          node-version: '20' # Next.js 14 LTS target (Node 18 is end-of-life)
 
       - name: Create .env file for Build & Server
         run: |
