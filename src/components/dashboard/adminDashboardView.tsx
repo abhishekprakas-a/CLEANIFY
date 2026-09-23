@@ -2,6 +2,7 @@
 
 import { Card, CardTitle } from "@/components/ui/card";
 import { StarRating } from "@/components/ui/starRating";
+import { PushEnableBanner } from "@/components/pwa/pushEnableBanner";
 import {
   JobsByStatusChart,
   JobsTrendChart,
@@ -50,6 +51,11 @@ export function AdminDashboardView({ data }: { data: AdminDashboard }) {
 
   return (
     <div className="space-y-6">
+      <PushEnableBanner
+        title="Turn on desktop alerts"
+        description="Get a sound alert the moment a worker submits work for approval."
+      />
+
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {cards.map((c) => (
