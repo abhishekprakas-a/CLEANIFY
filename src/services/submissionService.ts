@@ -262,7 +262,7 @@ export const submissionService = {
             : notificationType.completionSubmitted,
         jobId: String(job._id),
         message: `${label} check submitted for ${job.jobCode} — needs approval`,
-        url: "/work-approvals",
+        url: "/work-approvals?tab=pending",
         push: { title: `${label} needs approval` },
       },
     );
@@ -600,7 +600,7 @@ export const submissionService = {
       {
         type: notificationType.dayCheckSubmitted,
         message: `${dayCheckLabel[type]} submitted by ${user.name} — needs approval`,
-        url: "/work-approvals",
+        url: "/work-approvals?tab=pending",
         push: { title: "Check needs approval" },
       },
     );
