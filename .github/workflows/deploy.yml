@@ -44,6 +44,8 @@ jobs:
           echo "SEED_ADMIN_PASSWORD=${{ secrets.SEED_ADMIN_PASSWORD }}" >> .env
           echo "SEED_ADMIN_PHONE=${{ secrets.SEED_ADMIN_PHONE }}" >> .env
           echo "VAPID_SUBJECT=${{ secrets.VAPID_SUBJECT }}" >> .env
+          echo "NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}" >> .env
+          echo "VAPID_PRIVATE_KEY=${{ secrets.VAPID_PRIVATE_KEY }}" >> .env
           echo "S3_ACCESS_KEY_ID=${{ secrets.S3_ACCESS_KEY_ID }}" >> .env
           echo "S3_SECRET_ACCESS_KEY=${{ secrets.S3_SECRET_ACCESS_KEY }}" >> .env
 
