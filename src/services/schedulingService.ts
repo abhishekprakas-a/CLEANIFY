@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/apiError";
 import { toDto } from "@/lib/serialize";
 import { recordAudit } from "@/lib/audit";
 import { applyJobTransition } from "@/lib/jobWorkflow";
+import { isDevUser, realmFilter } from "@/lib/realm";
 import {
   assignmentStatus,
   bookingStatus,
@@ -465,12 +466,15 @@ export const schedulingService = {
    * Active (non-terminal) job count per active technician — the crew "load" —
    * plus today's attendance so the assign UI can flag absent/half-day workers.
    */
-  async workload(): Promise<TechnicianWorkload[]> {
+  async workload(caller: SessionUser): Promise<TechnicianWorkload[]> {
     await dbConnect();
     const today = dateKey(new Date());
+    // Realm scope: a real admin's crew picker shows only real technicians; a dev
+    // admin's shows only the test sandbox.
+    const devRealm = realmFilter(await isDevUser(caller.id));
     const [techs, counts, attendance] = await Promise.all([
       userModel
-        .find({ role: roles.technician, status: userStatus.active })
+        .find({ role: roles.technician, status: userStatus.active, ...devRealm })
         .select("name")
         .sort({ name: 1 })
         .lean(),
