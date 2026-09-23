@@ -47,6 +47,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [beforePhotos, setBeforePhotos] = useState<Photo[]>([]);
+  const [remark, setRemark] = useState("");
   const [completionPhotos, setCompletionPhotos] = useState<Photo[]>([]);
   const [notes, setNotes] = useState("");
   const [version, setVersion] = useState(0);
@@ -65,6 +66,27 @@ export function JobDetail({ jobId }: { jobId: string }) {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Reflect admin approve/decline without a manual reload: refresh on focus, and
+  // while the job is waiting on the admin, poll every 15s so the screen advances
+  // to the next step as soon as the before-photo / completion check is approved.
+  useEffect(() => {
+    const s = job?.status;
+    const waiting =
+      s === jobStatus.preWorkPendingApproval ||
+      s === jobStatus.completionPendingApproval;
+    const refresh = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    const id = waiting ? setInterval(refresh, 15_000) : undefined;
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+      if (id) clearInterval(id);
+    };
+  }, [job?.status, load]);
 
   async function transition(to: string, extra?: Record<string, unknown>) {
     setBusy(true);
@@ -247,13 +269,21 @@ export function JobDetail({ jobId }: { jobId: string }) {
             label="before-cleaning"
             onPhotosChange={setBeforePhotos}
           />
+          <Textarea
+            label="Work remark (required)"
+            className="mt-3"
+            placeholder="Describe the work / site condition before starting…"
+            value={remark}
+            onChange={(e) => setRemark(e.target.value)}
+          />
           <Button
             className="mt-4 w-full"
-            disabled={busy || beforePhotos.length < 1}
+            disabled={busy || beforePhotos.length < 1 || !remark.trim()}
             onClick={() =>
               submit(
                 "preWork",
                 beforePhotos.map((p) => p.id),
+                { remark: remark.trim() },
               )
             }
           >

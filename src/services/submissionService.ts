@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/apiError";
 import { recordAudit } from "@/lib/audit";
 import { applyJobTransition } from "@/lib/jobWorkflow";
 import {
+  approvalStatus,
   isDayCheckType,
   jobStatus,
   minCompletionPhotos,
@@ -200,6 +201,14 @@ export const submissionService = {
           "At least one before-cleaning photo is required",
         );
       }
+      // A work remark is mandatory on the before/reached-site submission.
+      const remark =
+        typeof input.details?.remark === "string"
+          ? input.details.remark.trim()
+          : "";
+      if (!remark) {
+        throw ApiError.unprocessable("A work remark is required");
+      }
     } else {
       const completionCount = photos.filter(
         (p) =>
@@ -374,6 +383,18 @@ export const submissionService = {
     submission.reviewedAt = new Date();
     await submission.save();
 
+    // Reflect the approval on the photos so the technician sees them approved.
+    await photoModel.updateMany(
+      { submissionId: submission._id },
+      {
+        $set: {
+          approvalStatus: approvalStatus.approved,
+          reviewedBy: user.id,
+          reviewedAt: new Date(),
+        },
+      },
+    );
+
     // Advance the job past the gate.
     const nextStatus =
       submission.type === submissionType.preWork
@@ -464,6 +485,19 @@ export const submissionService = {
     submission.reviewedAt = new Date();
     submission.declineReason = reason;
     await submission.save();
+
+    // Reflect the decline on the photos (shows as rejected with the reason).
+    await photoModel.updateMany(
+      { submissionId: submission._id },
+      {
+        $set: {
+          approvalStatus: approvalStatus.rejected,
+          reviewedBy: user.id,
+          reviewedAt: new Date(),
+          rejectionReason: reason,
+        },
+      },
+    );
 
     // Send the job back so the technician can redo the step.
     const backStatus =

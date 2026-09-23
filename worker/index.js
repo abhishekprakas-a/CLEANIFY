@@ -18,10 +18,17 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Cleanify";
   const options = {
     body: payload.body || "",
-    icon: "/brand/cleanify-icon.svg",
-    badge: "/brand/cleanify-icon.svg",
+    icon: "/icon.svg",
+    badge: "/icon.svg",
     data: { url: payload.url || "/technician" },
     tag: payload.tag,
+    // Calendar-style alert: plays the system notification sound (silent:false),
+    // vibrates on mobile, stays on screen until the user acts, and re-alerts even
+    // when a newer notification reuses the same tag.
+    silent: false,
+    vibrate: [200, 100, 200],
+    requireInteraction: true,
+    renotify: Boolean(payload.tag),
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
