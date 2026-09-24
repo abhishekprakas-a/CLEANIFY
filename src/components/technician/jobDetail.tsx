@@ -80,7 +80,7 @@ export function JobDetail({ jobId }: { jobId: string }) {
     };
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("focus", refresh);
-    const id = waiting ? setInterval(refresh, 15_000) : undefined;
+    const id = waiting ? setInterval(refresh, 10_000) : undefined;
     return () => {
       document.removeEventListener("visibilitychange", refresh);
       window.removeEventListener("focus", refresh);

@@ -8,17 +8,22 @@ import { dbConnect } from "@/lib/dbConnect";
 import { userModel } from "@/models";
 import { toDtoList } from "@/lib/serialize";
 import { parseListQuery } from "@/lib/pagination";
+import { isDevUser, realmFilter } from "@/lib/realm";
 import { roles } from "@/constants";
 import type { User } from "@/types";
 
 export async function GET(req: NextRequest) {
   return handleRoute(async () => {
-    await requireRole([roles.admin]);
+    const user = await requireRole([roles.admin]);
     await dbConnect();
     const query = parseListQuery(req.nextUrl.searchParams);
     const role = req.nextUrl.searchParams.get("role");
     const status = req.nextUrl.searchParams.get("status");
-    const filter: Record<string, unknown> = {};
+    // Realm scope: real admins never see dev/test accounts; dev admins see only
+    // the test sandbox. Keeps the test users out of Staff + assignment pickers.
+    const filter: Record<string, unknown> = {
+      ...realmFilter(await isDevUser(user.id)),
+    };
     if (role) filter.role = role;
     if (status) filter.status = status;
     const docs = await userModel

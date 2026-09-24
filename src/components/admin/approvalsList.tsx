@@ -45,6 +45,14 @@ export function ApprovalsList({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [decliningId, setDecliningId] = useState<string | null>(null);
 
+  // Silent fetch (no spinner) — used for polling so the queue updates quietly.
+  const refresh = useCallback(() => {
+    api
+      .get<Submission[]>(`${routes.api.submissions}?status=${status}`)
+      .then(setItems)
+      .catch(() => {});
+  }, [status]);
+
   const load = useCallback(() => {
     setLoading(true);
     api
@@ -54,9 +62,25 @@ export function ApprovalsList({
       .finally(() => setLoading(false));
   }, [status]);
 
+  // Initial load + light polling so new submissions appear and approved/declined
+  // ones drop off without a manual refresh. Paused when the tab is hidden;
+  // refreshes immediately on focus.
   useEffect(() => {
     load();
-  }, [load]);
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 15_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [load, refresh]);
 
   async function approve(id: string) {
     setBusyId(id);

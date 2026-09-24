@@ -19,9 +19,11 @@ export function WorkApprovalsTabs() {
   const router = useRouter();
   const params = useSearchParams();
   const raw = params.get("tab");
+  // Default to the actionable "Pending" queue (not "All photos"), so opening a
+  // notification — or the sidebar link — lands on what needs approval.
   const active: TabKey = TABS.some((t) => t.key === raw)
     ? (raw as TabKey)
-    : "all";
+    : "pending";
 
   function select(key: TabKey) {
     router.replace(`${routes.admin.workApprovals}?tab=${key}`);
