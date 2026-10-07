@@ -102,8 +102,13 @@ export const api = {
     apiFetch<T>(url, { method: "PATCH", body: JSON.stringify(data) }),
   delete: <T>(url: string) => apiFetch<T>(url, { method: "DELETE" }),
   logout: async () => {
+    // Never throw from logout: even if the request fails (offline, or the server
+    // is unreachable) we still clear local state so the caller can navigate to
+    // the login screen instead of surfacing an unhandled "Failed to fetch".
     try {
       await apiFetch(routes.api.auth.logout, { method: "POST" });
+    } catch {
+      /* ignore — fall through to clearing caches + navigating away */
     } finally {
       await clearUserCaches();
     }
