@@ -283,6 +283,18 @@ export interface Submission {
   photos: SubmissionPhoto[];
 }
 
+export interface LateRequest {
+  id: Id;
+  reason: string;
+  status: string; // pending | acknowledged
+  requestedBy?: { id: Id; name: string };
+  job?: { id: Id; jobCode: string };
+  adminNote?: string;
+  reviewedBy?: { id: Id; name: string };
+  reviewedAt?: string;
+  createdAt: string;
+}
+
 export interface GeoLocationPair {
   checkIn?: GeoPoint;
   checkOut?: GeoPoint;

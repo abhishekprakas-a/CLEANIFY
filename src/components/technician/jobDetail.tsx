@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { PhotoUploader } from "@/components/technician/photoUploader";
 import { JobTimeline } from "@/components/technician/jobTimeline";
+import { LateRequestCard } from "@/components/technician/lateRequestCard";
 import { api } from "@/hooks/useApi";
 import { toMapHref } from "@/lib/mapLink";
 import {
@@ -358,6 +359,11 @@ export function JobDetail({ jobId }: { jobId: string }) {
           </p>
         </Card>
       )}
+
+      {status !== jobStatus.completed &&
+        status !== jobStatus.closed &&
+        status !== jobStatus.cancelled &&
+        status !== jobStatus.rescheduled && <LateRequestCard jobId={jobId} />}
 
       <JobTimeline jobId={jobId} version={version} />
     </div>

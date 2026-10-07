@@ -12,5 +12,6 @@ export { reviewService } from "./reviewService";
 export { notificationService } from "./notificationService";
 export { inAppNotificationService } from "./inAppNotificationService";
 export { submissionService } from "./submissionService";
+export { lateRequestService } from "./lateRequestService";
 export { dashboardService } from "./dashboardService";
 export { reportService } from "./reportService";
