@@ -8,6 +8,7 @@ export * from "./service";
 export * from "./review";
 export * from "./attendance";
 export * from "./submissions";
+export * from "./lateRequests";
 export * from "./notifications";
 export * from "./routes";
 

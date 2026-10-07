@@ -33,7 +33,12 @@ const statusLabel: Record<string, string> = {
   absent: "Absent",
 };
 
-export function AttendanceCard() {
+export function AttendanceCard({
+  onChange,
+}: {
+  /** Notified of the current attendance record (used to gate the day checks). */
+  onChange?: (record: Attendance | null) => void;
+}) {
   const [record, setRecord] = useState<Attendance | null>(null);
   const [loading, setLoading] = useState(false);
   const [note, setNote] = useState<string | null>(null);
@@ -44,6 +49,11 @@ export function AttendanceCard() {
       .then(setRecord)
       .catch(() => {});
   }, []);
+
+  // Surface the record to the parent whenever it changes.
+  useEffect(() => {
+    onChange?.(record);
+  }, [record, onChange]);
 
   async function act(path: string, optimisticCheckedOut: boolean) {
     setLoading(true);

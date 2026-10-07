@@ -15,8 +15,11 @@ import type { DayCheckState, Photo, WorkDayStatus } from "@/types";
  * return to base at the end of the day.
  */
 export function WorkDayPanel({
+  checkedIn,
   onStatus,
 }: {
+  /** The machinery & uniform check only unlocks after the base check-in. */
+  checkedIn: boolean;
   onStatus?: (s: WorkDayStatus) => void;
 }) {
   const toast = useToast();
@@ -124,6 +127,15 @@ export function WorkDayPanel({
     );
   }
 
+  // The machinery & uniform upload is blocked until the technician checks in at
+  // base (server enforces this too). Show a clear lock instead of the uploaders.
+  const checkInFirst = (
+    <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
+      🔒 Check in at base first — the machinery &amp; uniform check unlocks once
+      you&apos;ve checked in above.
+    </p>
+  );
+
   return (
     <div className="space-y-4">
       <Card>
@@ -132,13 +144,15 @@ export function WorkDayPanel({
           Photograph the machinery (in order) and yourself in uniform/mask before
           heading out. Your sites unlock once an admin approves this.
         </p>
-        {renderCheck(
-          status.start,
-          submissionType.startOfDay,
-          "Submit start-of-day check",
-          "Submitted — waiting for approval before you can start sites.",
-          "Approved — your sites are unlocked.",
-        )}
+        {!checkedIn && status.start.status !== "approved"
+          ? checkInFirst
+          : renderCheck(
+              status.start,
+              submissionType.startOfDay,
+              "Submit start-of-day check",
+              "Submitted — waiting for approval before you can start sites.",
+              "Approved — your sites are unlocked.",
+            )}
       </Card>
 
       {status.sitesUnlocked && (
@@ -148,13 +162,15 @@ export function WorkDayPanel({
             After finishing all your sites and returning to base, photograph the
             machinery and uniform again to close out the day.
           </p>
-          {renderCheck(
-            status.end,
-            submissionType.endOfDay,
-            "Submit end-of-day check",
-            "Submitted — waiting for approval.",
-            "Day closed. Great work!",
-          )}
+          {!checkedIn && status.end.status !== "approved"
+            ? checkInFirst
+            : renderCheck(
+                status.end,
+                submissionType.endOfDay,
+                "Submit end-of-day check",
+                "Submitted — waiting for approval.",
+                "Day closed. Great work!",
+              )}
         </Card>
       )}
     </div>

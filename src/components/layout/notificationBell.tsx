@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/hooks/useApi";
+import { playNotificationChime } from "@/lib/notificationSound";
 import { routes } from "@/constants";
 import type { AppNotification } from "@/types";
 
@@ -26,11 +27,28 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [feed, setFeed] = useState<Feed>({ items: [], unread: 0 });
   const ref = useRef<HTMLDivElement>(null);
+  // Timestamp of the newest unread notification we've already seen, so a poll
+  // that surfaces a genuinely new one can play a sound. `primed` suppresses the
+  // chime on the very first load (we don't want to ring for a backlog).
+  const lastSeenTs = useRef(0);
+  const primed = useRef(false);
 
   const load = useCallback(() => {
     api
       .get<Feed>(routes.api.notifications)
-      .then(setFeed)
+      .then((f) => {
+        setFeed(f);
+        const newestUnread = f.items.reduce(
+          (max, n) =>
+            n.isRead ? max : Math.max(max, new Date(n.createdAt).getTime()),
+          0,
+        );
+        if (primed.current && newestUnread > lastSeenTs.current) {
+          playNotificationChime();
+        }
+        if (newestUnread > lastSeenTs.current) lastSeenTs.current = newestUnread;
+        primed.current = true;
+      })
       .catch(() => {});
   }, []);
 

@@ -18,6 +18,11 @@ const navItems = [
     label: "Work Photos & Approvals",
     badge: "approvals" as const,
   },
+  {
+    href: routes.admin.lateRequests,
+    label: "Late Requests",
+    badge: "late" as const,
+  },
   { href: routes.admin.reviews, label: "Reviews" },
   { href: routes.admin.attendance, label: "Attendance" },
   { href: routes.admin.reports, label: "Reports" },
@@ -28,11 +33,16 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [pendingLate, setPendingLate] = useState(0);
 
   const loadBadges = useCallback(() => {
     api
       .get<{ count: number }>(`${routes.api.submissions}?count=1`)
       .then((d) => setPendingApprovals(d.count))
+      .catch(() => {});
+    api
+      .get<{ count: number }>(`${routes.api.lateRequests}?count=1`)
+      .then((d) => setPendingLate(d.count))
       .catch(() => {});
   }, []);
 
@@ -65,7 +75,11 @@ export function Sidebar() {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
           const count =
-            item.badge === "approvals" ? pendingApprovals : 0;
+            item.badge === "approvals"
+              ? pendingApprovals
+              : item.badge === "late"
+                ? pendingLate
+                : 0;
           return (
             <Link
               key={item.href}

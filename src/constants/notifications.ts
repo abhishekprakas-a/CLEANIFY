@@ -17,6 +17,9 @@ export const notificationType = {
   dayCheckSubmitted: "dayCheckSubmitted",
   dayCheckApproved: "dayCheckApproved",
   dayCheckDeclined: "dayCheckDeclined",
+  // Late requests (work running late).
+  lateRequestRaised: "lateRequestRaised",
+  lateRequestReviewed: "lateRequestReviewed",
 } as const;
 
 export type NotificationType =

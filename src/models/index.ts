@@ -12,5 +12,6 @@ export { attendanceModel } from "./attendanceModel";
 export { photoModel } from "./photoModel";
 export { reviewModel } from "./reviewModel";
 export { jobSubmissionModel } from "./jobSubmissionModel";
+export { lateRequestModel } from "./lateRequestModel";
 export { notificationModel } from "./notificationModel";
 export { staffRatingModel } from "./staffRatingModel";

@@ -9,11 +9,16 @@ import { PushEnableBanner } from "@/components/pwa/pushEnableBanner";
 import { WorkDayPanel } from "@/components/technician/workDayPanel";
 import { JobList } from "@/components/technician/jobList";
 import { InstallButton } from "@/components/pwa/installButton";
+import { LateRequestCard } from "@/components/technician/lateRequestCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useAssignedJobs } from "@/hooks/useAssignedJobs";
 import { api } from "@/hooks/useApi";
 import { routes } from "@/constants";
-import type { TechnicianDashboardData, WorkDayStatus } from "@/types";
+import type {
+  Attendance,
+  TechnicianDashboardData,
+  WorkDayStatus,
+} from "@/types";
 
 const statusShort: Record<string, string> = {
   pending: "Pending",
@@ -30,6 +35,8 @@ export function TechnicianDashboard() {
   const { jobs, loading, fromCache } = useAssignedJobs();
   const [summary, setSummary] = useState<TechnicianDashboardData | null>(null);
   const [dayStatus, setDayStatus] = useState<WorkDayStatus | null>(null);
+  const [attendance, setAttendance] = useState<Attendance | null>(null);
+  const checkedIn = Boolean(attendance?.checkInTime) && !attendance?.checkOutTime;
   const sitesLocked = dayStatus ? !dayStatus.sitesUnlocked : false;
 
   const loadSummary = useCallback(() => {
@@ -76,15 +83,17 @@ export function TechnicianDashboard() {
 
       <PushEnableBanner />
 
-      <AttendanceCard />
+      <AttendanceCard onChange={setAttendance} />
 
-      <WorkDayPanel onStatus={setDayStatus} />
+      <WorkDayPanel checkedIn={checkedIn} onStatus={setDayStatus} />
 
       {sitesLocked && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
           🔒 Your sites are locked until your start-of-day check is approved.
         </div>
       )}
+
+      <LateRequestCard />
 
       {/* Counts */}
       <div className="grid grid-cols-3 gap-3">

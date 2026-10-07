@@ -16,6 +16,7 @@ import {
   type SubmissionType,
 } from "@/constants";
 import {
+  attendanceModel,
   jobModel,
   jobSubmissionModel,
   photoModel,
@@ -37,6 +38,14 @@ function startOfToday(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+/** Local YYYY-MM-DD key (matches attendanceService's day key, not UTC). */
+function dateKey(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 const dayCheckLabel: Record<string, string> = {
@@ -546,6 +555,18 @@ export const submissionService = {
     await dbConnect();
     if (!isDayCheckType(type)) {
       throw ApiError.badRequest("Invalid day-check type");
+    }
+
+    // Gate: the technician must be checked in at base before the machinery &
+    // uniform check. This blocks the upload/submit until check-in is done — the
+    // UI also hides the uploader, this is the server-side enforcement.
+    const attendance = await attendanceModel
+      .findOne({ userId: user.id, date: dateKey() })
+      .lean();
+    if (!attendance || attendance.checkOutTime) {
+      throw ApiError.unprocessable(
+        "Check in at base before submitting your machinery & uniform check",
+      );
     }
 
     const existing = await jobSubmissionModel
